@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "team_name": "bandwagon fallacy",
+  "model": {
+    "mode": "external_api",
+    "name": "gemini-flash-lite-latest"
+  },
+  "results": []
+}
