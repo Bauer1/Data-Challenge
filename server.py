@@ -106,11 +106,12 @@ def init_db() -> None:
 
         # Seed default LLM settings if not present
         cur.execute("SELECT value_json FROM settings WHERE key = 'llm_config'")
-        if not cur.fetchone():
+        row_llm = cur.fetchone()
+        if not row_llm:
             env_key = os.environ.get("GEMINI_API_KEY", "")
             default_llm = {
                 "provider": "gemini" if env_key else "builtin",
-                "model": "gemini-flash-latest",
+                "model": "gemini-flash-lite-latest",
                 "api_key": env_key,
                 "base_url": "",
                 "cost_per_1m_input_usd": 0.15,
@@ -121,6 +122,17 @@ def init_db() -> None:
                 "INSERT INTO settings (key, value_json) VALUES (?, ?)",
                 ("llm_config", json.dumps(default_llm, ensure_ascii=False))
             )
+        else:
+            try:
+                saved_llm = json.loads(row_llm["value_json"])
+                if saved_llm.get("model") == "gemini-flash-latest":
+                    saved_llm["model"] = "gemini-flash-lite-latest"
+                    cur.execute(
+                        "UPDATE settings SET value_json = ? WHERE key = 'llm_config'",
+                        (json.dumps(saved_llm, ensure_ascii=False),)
+                    )
+            except Exception:
+                pass
 
         # Seed default checklist if not present
         cur.execute("SELECT COUNT(*) as cnt FROM checklists")
@@ -384,7 +396,7 @@ def public_llm_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
 # =============================================================================
 JOBS_LOCK = threading.Lock()
 CURRENT_JOB: Dict[str, Any] = {}
-LLM_CONCURRENCY = max(1, int(os.environ.get("LLM_CONCURRENCY", "3")))
+LLM_CONCURRENCY = max(1, int(os.environ.get("LLM_CONCURRENCY", "2")))
 
 
 def get_current_job_snapshot() -> Optional[Dict[str, Any]]:
@@ -480,6 +492,8 @@ def start_batch_llm_job(reason: str, reset_appeals: bool, conversation_ids: Opti
             CURRENT_JOB["done"] += 1
             if meta.get("llm_used"):
                 CURRENT_JOB["llm_ok"] += 1
+                if meta.get("model_name"):
+                    CURRENT_JOB["model"] = meta["model_name"]
             else:
                 CURRENT_JOB["fallback"] += 1
                 err = meta.get("llm_error") or meta.get("llm_fallback_note") or "неизвестная ошибка"
@@ -560,13 +574,13 @@ class CQARequestHandler(BaseHTTPRequestHandler):
                 self._send_json({"isSuccess": True, "llm_config": public_llm_config(cfg)})
             elif path == "/api/jobs/current":
                 self._send_json({"isSuccess": True, "job": get_current_job_snapshot()})
+            elif path == "/api/export/hackathon":
+                self._handle_export_hackathon(query)
             elif path == "/api/asr/status":
                 self._send_json({"isSuccess": True, "asr_status": get_pocketsphinx_status()})
             elif path.startswith("/api/audio/"):
                 cid = urllib.parse.unquote(path.split("/api/audio/", 1)[1])
                 self._handle_audio_proxy(cid)
-            elif path == "/api/tts":
-                self._handle_tts_proxy(query)
             else:
                 self._serve_static(path)
         except Exception as exc:
@@ -590,6 +604,8 @@ class CQARequestHandler(BaseHTTPRequestHandler):
                 self._handle_submit_appeal(body)
             elif path == "/api/appeals/decide":
                 self._handle_decide_appeal(body)
+            elif path == "/api/export/hackathon":
+                self._handle_export_hackathon(body)
             elif path == "/api/settings/llm":
                 self._handle_save_llm_settings(body)
             elif path == "/api/settings/llm/test":
@@ -803,6 +819,189 @@ class CQARequestHandler(BaseHTTPRequestHandler):
             })
 
         self._send_json({"isSuccess": True, "total": len(items), "records": items})
+
+    def _handle_export_hackathon(self, query_or_body: Dict[str, Any]) -> None:
+        group_id = "DEV"
+        if isinstance(query_or_body, dict):
+            if "group_id" in query_or_body:
+                val = query_or_body["group_id"]
+                group_id = val[0] if isinstance(val, list) and val else str(val)
+        group_id = (group_id or "DEV").strip()
+
+        with DB_LOCK:
+            conn = get_db()
+            cur = conn.cursor()
+            if group_id.upper() in ("ALL", "*", ""):
+                cur.execute("SELECT * FROM conversations ORDER BY conversation_id ASC")
+            else:
+                cur.execute(
+                    "SELECT * FROM conversations WHERE UPPER(dataset_group_id) = UPPER(?) ORDER BY conversation_id ASC",
+                    (group_id,)
+                )
+            rows = cur.fetchall()
+            llm_cfg = get_llm_config(conn)
+            conn.close()
+
+        provider = llm_cfg.get("provider", "builtin")
+        model_name = llm_cfg.get("model", "Freedom-CQA-Hybrid")
+        mode = "local" if provider == "ollama" else ("external_api" if provider in ("gemini", "openai") else "hybrid")
+
+        target_criteria = [
+            ("contact", ["01", "c01", "contact"], "boolean", False),
+            ("discovery", ["02", "c02", "discovery"], "boolean", True),
+            ("identification", ["03", "c03", "identification"], "boolean", True),
+            ("consultation", ["04", "c04", "consultation"], "scale", True),
+            ("empathy", ["05", "c05", "empathy"], "boolean", False),
+            ("dialogue", ["06", "c06", "dialogue"], "scale", False),
+            ("closure", ["07", "c07", "closure"], "boolean", True),
+            ("critical", ["08", "c08", "critical"], "critical", False),
+        ]
+
+        results = []
+        for r in rows:
+            cid = r["conversation_id"]
+            ev_raw = r["current_eval_json"] or r["initial_eval_json"]
+            if not ev_raw:
+                results.append({
+                    "conversation_id": cid,
+                    "status": "error",
+                    "criteria": [],
+                    "score": None,
+                    "error": "Оценка для данного диалога отсутствует."
+                })
+                continue
+
+            try:
+                ev = json.loads(ev_raw)
+            except Exception as e:
+                results.append({
+                    "conversation_id": cid,
+                    "status": "error",
+                    "criteria": [],
+                    "score": None,
+                    "error": f"Ошибка парсинга оценки: {str(e)}"
+                })
+                continue
+
+            crit_results = ev.get("criteria_results", [])
+            by_code = {}
+            for cr in crit_results:
+                c_code = str(cr.get("code", "")).strip()
+                c_id = str(cr.get("criterion_id", "")).strip()
+                if c_code:
+                    by_code[c_code] = cr
+                if c_id:
+                    by_code[c_id] = cr
+
+            export_criteria = []
+            for target_id, aliases, ctype, allow_na in target_criteria:
+                matched = None
+                for a in aliases:
+                    if a in by_code:
+                        matched = by_code[a]
+                        break
+
+                if not matched:
+                    export_criteria.append({
+                        "criterion_id": target_id,
+                        "value": False if ctype != "scale" else (None if allow_na else 0),
+                        "rationale": "Критерий не найден в результатах оценки.",
+                        "evidence_turns": []
+                    })
+                    continue
+
+                is_na = bool(matched.get("is_na", False))
+                ans = matched.get("answer")
+                ans_str = str(ans).strip().upper() if ans is not None else ""
+
+                if is_na and allow_na:
+                    val = None
+                elif ctype == "critical":
+                    val = bool(ans_str in ("ДА", "YES", "TRUE", "1"))
+                elif ctype == "boolean":
+                    val = bool(ans_str in ("ДА", "YES", "TRUE", "1", "ИӘ"))
+                elif ctype == "scale":
+                    if is_na:
+                        val = None
+                    else:
+                        try:
+                            val = int(round(float(matched.get("scale_value", ans) or 0)))
+                        except (ValueError, TypeError):
+                            val = 0
+                else:
+                    val = ans
+
+                evidence_turns = []
+                for ev_item in matched.get("evidence", []):
+                    t_idx = ev_item.get("turn_index", ev_item.get("evidence_line_index"))
+                    if t_idx is not None:
+                        try:
+                            turn_num = int(t_idx) + 1
+                            if turn_num > 0 and turn_num not in evidence_turns:
+                                evidence_turns.append(turn_num)
+                        except (ValueError, TypeError):
+                            pass
+                evidence_turns.sort()
+
+                rationale = matched.get("reasoning") or matched.get("na_reason") or ""
+                if not rationale and is_na:
+                    rationale = "Критерий неприменим к данному диалогу."
+
+                export_criteria.append({
+                    "criterion_id": target_id,
+                    "value": val,
+                    "rationale": rationale,
+                    "evidence_turns": evidence_turns
+                })
+
+            final_score = ev.get("final_score")
+            if final_score is not None:
+                try:
+                    final_score = round(float(final_score), 2)
+                except (ValueError, TypeError):
+                    final_score = 0.0
+
+            crit_value = False
+            for ec in export_criteria:
+                if ec["criterion_id"] == "critical":
+                    crit_value = bool(ec["value"])
+                    break
+
+            results.append({
+                "conversation_id": cid,
+                "status": "ok",
+                "criteria": export_criteria,
+                "score": {
+                    "final_score": final_score,
+                    "critical_flag": crit_value
+                }
+            })
+
+        out_data = {
+            "schema_version": "1.0",
+            "team_name": "bandwagon fallacy",
+            "model": {
+                "mode": mode,
+                "name": model_name
+            },
+            "results": results
+        }
+
+        sub_folder = "prod" if group_id.upper() == "PROD" else "dev"
+        repo_results_dir = os.path.join(BASE_DIR, "results", sub_folder)
+        os.makedirs(repo_results_dir, exist_ok=True)
+        results_file_path = os.path.join(repo_results_dir, "results.json")
+        with open(results_file_path, "w", encoding="utf-8") as f:
+            json.dump(out_data, f, ensure_ascii=False, indent=2)
+
+        body = json.dumps(out_data, ensure_ascii=False, indent=2).encode("utf-8")
+        self.send_response(200)
+        self._send_cors_headers()
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Disposition", f'attachment; filename="results.json"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _handle_get_conversation(self, cid: str) -> None:
         with DB_LOCK:
@@ -1606,78 +1805,6 @@ class CQARequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def _handle_tts_proxy(self, query: Dict[str, List[str]]) -> None:
-        """
-        Proxies and caches neural TTS MP3 audio for replica voiceover (/api/tts?lang=ru&text=...).
-        """
-        import hashlib
-        import ssl
-
-        raw_text = (query.get("text", [""])[0] or "").strip()
-        lang_param = (query.get("lang", ["ru"])[0] or "ru").strip().lower()
-        if not raw_text:
-            self._send_json({"isSuccess": False, "error": "Empty text"}, status=400)
-            return
-
-        tl = "en" if lang_param.startswith("en") else "ru"
-        # Phonetic normalization of Kazakh Cyrillic letters so Russian neural TTS pronounces them cleanly
-        kz_map = str.maketrans({
-            "ә": "а", "Ә": "А",
-            "і": "и", "І": "И",
-            "ң": "н", "Ң": "Н",
-            "ғ": "г", "Ғ": "Г",
-            "ү": "у", "Ү": "У",
-            "ұ": "у", "Ұ": "У",
-            "қ": "к", "Қ": "К",
-            "ө": "о", "Ө": "О",
-            "һ": "х", "Һ": "Х",
-        })
-        norm_text = raw_text.translate(kz_map)[:180]
-        os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
-        digest = hashlib.md5(f"{tl}:{norm_text}".encode("utf-8")).hexdigest()
-        tts_cache_file = os.path.join(AUDIO_CACHE_DIR, f"tts_{digest}.mp3")
-
-        if os.path.exists(tts_cache_file) and os.path.getsize(tts_cache_file) > 128:
-            with open(tts_cache_file, "rb") as f:
-                data = f.read()
-            self.send_response(200)
-            self._send_cors_headers()
-            self.send_header("Content-Type", "audio/mpeg")
-            self.send_header("Content-Length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
-            return
-
-        q_enc = urllib.parse.quote(norm_text)
-        candidate_urls = [
-            f"https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl={tl}&q={q_enc}",
-            f"https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl={tl}&q={q_enc}",
-        ]
-        ssl_ctx = ssl.create_default_context()
-        headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept": "audio/*,*/*;q=0.8",
-        }
-        for url in candidate_urls:
-            try:
-                req = urllib.request.Request(url, headers=headers)
-                with urllib.request.urlopen(req, timeout=8, context=ssl_ctx) as resp:
-                    data = resp.read()
-                    if data and len(data) > 128:
-                        with open(tts_cache_file, "wb") as f:
-                            f.write(data)
-                        self.send_response(200)
-                        self._send_cors_headers()
-                        self.send_header("Content-Type", "audio/mpeg")
-                        self.send_header("Content-Length", str(len(data)))
-                        self.end_headers()
-                        self.wfile.write(data)
-                        return
-            except Exception:
-                continue
-
-        self._send_json({"isSuccess": False, "error": "TTS stream unavailable"}, status=502)
-
     def _serve_static(self, path: str) -> None:
         if path in ("", "/"):
             path = "/index.html"
@@ -1706,6 +1833,9 @@ class CQARequestHandler(BaseHTTPRequestHandler):
         self._send_cors_headers()
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(content)))
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         self.end_headers()
         self.wfile.write(content)
 

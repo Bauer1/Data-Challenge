@@ -226,25 +226,125 @@ def format_mm_ss(seconds: Optional[float]) -> str:
 
 def enrich_transcript_with_offsets(transcript: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    Adds `turn_index`, `offset_seconds`, and `formatted_offset` to each turn in transcript while preserving original fields.
-    For voice calls, calculates audio offset from the first 'Запись и транскрибирование запущены' or turn 0.
+    Adds `turn_index`, `offset_seconds`, `end_offset_seconds`, and `formatted_offset` to each turn in transcript.
+    For voice calls (ISO-8601 timestamps from Dynamics 365 Omnichannel Voice), computes non-linear audio alignment:
+    1. Pre-recording offset: aligns MP3 00:00 with 'Запись и транскрибирование запущены' / 'Жазу және транскрипция басталды'.
+    2. Pause compression: accounts for excised time during 'приостановлены' -> 'возобновлены' transfer pauses.
+    3. ASR endpoint-commit to utterance-start mapping: converts turn completion timestamp (t_commit) to speech start (t_start).
     """
+    if not transcript:
+        return []
+
     base_iso: Optional[datetime.datetime] = None
-    # Find recording start if ISO timestamps are used
+    has_iso = False
     for t in transcript:
-        _, dt = parse_timestamp_seconds(t.get("timestamp", ""), None)
+        ts_str = str(t.get("timestamp", "") or "").strip()
+        _, dt = parse_timestamp_seconds(ts_str, None)
         if dt is not None:
             base_iso = dt
+            has_iso = True
             break
 
+    wall_secs: List[float] = []
+    for idx, t in enumerate(transcript):
+        sec, base_iso = parse_timestamp_seconds(str(t.get("timestamp", "") or ""), base_iso)
+        wall_secs.append(sec if sec is not None else float(idx * 4))
+
+    if not has_iso:
+        enriched = []
+        for idx, t in enumerate(transcript):
+            sec = wall_secs[idx]
+            item = dict(t)
+            item["turn_index"] = idx
+            item["offset_seconds"] = round(sec, 1)
+            item["end_offset_seconds"] = round(sec, 1)
+            item["formatted_offset"] = format_mm_ss(sec)
+            enriched.append(item)
+        return enriched
+
+    # 1. Pre-recording start offset (MP3 starts when recording/transcription starts)
+    rec_start_wall = 0.0
+    for idx, t in enumerate(transcript):
+        if str(t.get("speaker", "")).lower() == "system":
+            txt = str(t.get("text", "") or "").lower()
+            if ("запись и транскрибирование запущены" in txt or "жазу және транскрипция басталды" in txt) and wall_secs[idx] <= 60.0:
+                rec_start_wall = wall_secs[idx]
+                break
+
+    # 2. Recording pause intervals ('приостановлены' -> 'возобновлены')
+    pauses: List[Tuple[float, float, float]] = []
+    pause_start: Optional[float] = None
+    for idx, t in enumerate(transcript):
+        if str(t.get("speaker", "")).lower() == "system":
+            txt = str(t.get("text", "") or "").lower()
+            if "приостановлены" in txt or "уақытша тоқтатылды" in txt:
+                pause_start = wall_secs[idx]
+            elif ("возобновлены" in txt or "қайта жалғастырылды" in txt) and pause_start is not None:
+                p_end = wall_secs[idx]
+                if p_end > pause_start:
+                    # Dynamics 365 MP3 stream retains ~6.6s (4.90s zero-frame + ~1.7s handoff) across pause
+                    cut_sec = max(0.0, (p_end - pause_start) - 6.6)
+                    pauses.append((pause_start, p_end, cut_sec))
+                pause_start = None
+
+    def wall_to_audio_commit(w_sec: float) -> float:
+        if w_sec <= rec_start_wall:
+            return 0.0
+        t_val = w_sec - rec_start_wall
+        cut_accum = 0.0
+        for p_s, p_e, p_cut in pauses:
+            if w_sec <= p_s:
+                break
+            elif w_sec >= p_e:
+                cut_accum += p_cut
+            else:
+                ratio = (w_sec - p_s) / max(0.1, p_e - p_s)
+                cut_accum += p_cut * ratio
+        return max(0.0, t_val - cut_accum)
+
+    commit_secs = [wall_to_audio_commit(w) for w in wall_secs]
+
+    # 3. Map ASR endpoint commit time to utterance start time
     enriched = []
     for idx, t in enumerate(transcript):
-        sec, base_iso = parse_timestamp_seconds(t.get("timestamp", ""), base_iso)
+        sp = str(t.get("speaker", "") or "").lower()
+        txt = str(t.get("text", "") or "").strip()
+        c_sec = commit_secs[idx]
+
+        if sp == "system":
+            start_sec = c_sec
+        elif len(txt) <= 2 and txt.isdigit():
+            # Single-digit DTMF press during IVR menu
+            start_sec = max(0.0, c_sec - 0.5)
+        else:
+            prev_end = 0.0
+            for j in range(idx - 1, -1, -1):
+                prev_sp = str(transcript[j].get("speaker", "") or "").lower()
+                prev_txt = str(transcript[j].get("text", "") or "").strip()
+                # If current turn is IVR bot and previous turn was a mid-prompt DTMF digit, look before the digit
+                if sp == "bot" and prev_sp == "client" and len(prev_txt) <= 2 and prev_txt.isdigit():
+                    continue
+                prev_end = commit_secs[j]
+                break
+
+            gap = max(0.0, c_sec - prev_end)
+            # Russian/Kazakh conversational speech rate ~13.0 chars/sec
+            est_dur = max(1.0, len(txt) / 13.0)
+            if sp == "bot" and idx > 0:
+                prev_txt_imm = str(transcript[idx - 1].get("text", "") or "").strip()
+                if len(prev_txt_imm) <= 2 and prev_txt_imm.isdigit():
+                    # Bot prompt was interrupted by or overlapped with DTMF; starts right after previous bot turn
+                    est_dur = gap
+            dur = min(gap, est_dur + 0.6) if gap > 0 else 0.0
+            start_sec = max(prev_end, c_sec - dur)
+
         item = dict(t)
         item["turn_index"] = idx
-        item["offset_seconds"] = sec if sec is not None else 0.0
-        item["formatted_offset"] = format_mm_ss(sec)
+        item["offset_seconds"] = round(start_sec, 1)
+        item["end_offset_seconds"] = round(max(start_sec + 0.6, c_sec), 1)
+        item["formatted_offset"] = format_mm_ss(start_sec)
         enriched.append(item)
+
     return enriched
 
 
@@ -1914,14 +2014,19 @@ def evaluate_conversation_analytical(
 # =============================================================================
 LLM_PROVIDERS: Dict[str, Dict[str, Any]] = {
     "builtin": {"label": "Встроенный гибридный движок", "default_model": "", "needs_key": False},
-    "gemini": {"label": "Google Gemini API", "default_model": "gemini-flash-latest", "needs_key": True},
+    "gemini": {"label": "Google Gemini API", "default_model": "gemini-flash-lite-latest", "needs_key": True},
     "openai": {"label": "OpenAI / Compatible API", "default_model": "gpt-4o-mini", "needs_key": True},
     "ollama": {"label": "Ollama (локально)", "default_model": "llama3.1:8b", "needs_key": False},
 }
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
-# Alias that Google keeps pointing at the current Flash model — used when a pinned model is retired (HTTP 404)
-GEMINI_FALLBACK_MODEL = "gemini-flash-latest"
+GEMINI_FALLBACK_MODEL = "gemini-flash-lite-latest"
+GEMINI_FALLBACK_CHAIN: List[str] = [
+    "gemini-flash-lite-latest",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-flash-latest",
+]
 _GEMINI_MODEL_REMAP: Dict[str, str] = {}
 LLM_HTTP_TIMEOUT_SEC = 120
 LLM_MAX_RETRIES = 3
@@ -2055,6 +2160,9 @@ def _http_post_json(url: str, payload: Dict[str, Any], headers: Dict[str, str], 
             except Exception:
                 pass
             last_err = f"HTTP {http_err.code}: {msg}"
+            # If daily/per-model quota is exhausted on 429, fail immediately so _llm_complete can switch to fallback model
+            if http_err.code == 429 and ("Quota exceeded" in msg or "RESOURCE_EXHAUSTED" in raw):
+                raise LLMError(last_err, status=429) from None
             if http_err.code in (429, 500, 502, 503, 504) and attempt < LLM_MAX_RETRIES - 1:
                 time.sleep(retry_delay)
                 continue
@@ -2094,7 +2202,8 @@ def _llm_complete(
         raise LLMError("API-ключ не задан")
 
     if provider == "gemini":
-        model = _GEMINI_MODEL_REMAP.get(model, model)
+        orig_model = cfg["model"] or LLM_PROVIDERS[provider]["default_model"]
+        model = _GEMINI_MODEL_REMAP.get(orig_model, orig_model)
         gen_cfg: Dict[str, Any] = {"temperature": 0.1}
         if json_mode:
             gen_cfg["responseMimeType"] = "application/json"
@@ -2105,16 +2214,23 @@ def _llm_complete(
             "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
             "generationConfig": gen_cfg,
         }
-        try:
-            data = _http_post_json(_gemini_url(model), payload, {"x-goog-api-key": api_key}, timeout)
-        except LLMError as exc:
-            # Pinned model retired / unavailable for this key -> retry once with the "latest" alias
-            if exc.status == 404 and model != GEMINI_FALLBACK_MODEL:
-                _GEMINI_MODEL_REMAP[model] = GEMINI_FALLBACK_MODEL
-                model = GEMINI_FALLBACK_MODEL
-                data = _http_post_json(_gemini_url(model), payload, {"x-goog-api-key": api_key}, timeout)
-            else:
+        data = None
+        last_exc: Optional[LLMError] = None
+        candidates_to_try = [model] + [m for m in GEMINI_FALLBACK_CHAIN if m != model]
+        for cand_model in candidates_to_try:
+            try:
+                data = _http_post_json(_gemini_url(cand_model), payload, {"x-goog-api-key": api_key}, timeout)
+                if cand_model != orig_model:
+                    _GEMINI_MODEL_REMAP[orig_model] = cand_model
+                model = cand_model
+                break
+            except LLMError as exc:
+                last_exc = exc
+                if exc.status in (404, 429, 503):
+                    continue
                 raise
+        if data is None:
+            raise last_exc or LLMError("Не удалось выполнить запрос к Gemini API")
         candidates = data.get("candidates") or []
         if not candidates:
             block = (data.get("promptFeedback") or {}).get("blockReason")
