@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
   <title>Freedom Finance — CQA</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -826,6 +827,7 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
           </div>
         </div>
         <audio id="callAudioPlayer" preload="metadata" class="hidden"></audio>
+        <audio id="ttsVoicePlayer" preload="auto" class="hidden"></audio>
       </div>
 
       <!-- Лента сообщений (Chat Feed) -->
@@ -1331,7 +1333,15 @@ const state = {
   pendingAudioSeekSec: null,
   clientWavUrls: {},
   resolvedRealAudioUrls: {},
-  unwrapInFlight: {}
+  unwrapInFlight: {},
+  realAudioCanPlay: false,
+  ttsSequencerActive: false,
+  ttsSequencerPaused: false,
+  ttsCurrentTurnIdx: 0,
+  ttsCurrentChunkIdx: 0,
+  ttsCurrentUrlCandidateIdx: 0,
+  ttsChunksQueue: [],
+  ttsNextTurnTimer: null
 };
 
 async function apiRequest(endpoint, options = {}) {
@@ -2318,8 +2328,127 @@ function updateAudioPlayButtonIcon(isPlaying) {
   }
 }
 
+const KAZAKH_CYRILLIC_TTS_MAP = {
+  "ә": "а", "Ә": "А",
+  "і": "и", "І": "И",
+  "ң": "н", "Ң": "Н",
+  "ғ": "г", "Ғ": "Г",
+  "ү": "у", "Ү": "У",
+  "ұ": "у", "Ұ": "У",
+  "қ": "к", "Қ": "К",
+  "ө": "о", "Ө": "О",
+  "һ": "х", "Һ": "Х"
+};
+
+function normalizeTextForTts(rawText) {
+  let text = String(rawText || "")
+    .replace(/\[Имя скрыто\]/gi, "Клиент")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    out += KAZAKH_CYRILLIC_TTS_MAP[ch] || ch;
+  }
+  return out;
+}
+
+function splitTextIntoTtsChunks(text, maxLen = 155) {
+  const clean = String(text || "").trim();
+  if (!clean) return [];
+  if (clean.length <= maxLen) return [clean];
+
+  const sentences = clean.split(/(?<=[.!?।;])\s+/);
+  const chunks = [];
+  let current = "";
+
+  for (const sent of sentences) {
+    if (!sent) continue;
+    if ((current + " " + sent).trim().length <= maxLen) {
+      current = (current + " " + sent).trim();
+    } else {
+      if (current) chunks.push(current);
+      if (sent.length <= maxLen) {
+        current = sent;
+      } else {
+        const words = sent.split(/\s+/);
+        current = "";
+        for (const w of words) {
+          if ((current + " " + w).trim().length <= maxLen) {
+            current = (current + " " + w).trim();
+          } else {
+            if (current) chunks.push(current);
+            current = w.slice(0, maxLen);
+          }
+        }
+      }
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : [clean.slice(0, maxLen)];
+}
+
+function buildTtsUrlsForChunk(chunk, langCode) {
+  const isEn = String(langCode || "").toUpperCase() === "EN";
+  const tl = isEn ? "en" : "ru";
+  const q = encodeURIComponent(chunk);
+  return [
+    `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=${tl}&q=${q}`,
+    `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${q}`,
+    `https://dict.youdao.com/dictvoice?audio=${q}&le=${isEn ? "eng" : "ru"}`,
+    `/api/tts?lang=${tl}&text=${q}`
+  ];
+}
+
+function findFirstSpokenTurnIdx(transcript, fromIdx = 0) {
+  if (!Array.isArray(transcript) || !transcript.length) return -1;
+  for (let i = Math.max(0, fromIdx); i < transcript.length; i++) {
+    const sp = String(transcript[i]?.speaker || "").toLowerCase();
+    const txt = normalizeTextForTts(transcript[i]?.text || "");
+    if (sp !== "system" && txt.length > 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function getSpeakerTtsPlaybackRate(speaker) {
+  const baseRate = state.audioRate || 1.0;
+  const role = String(speaker || "").toLowerCase();
+  const mult = role === "client" ? 0.98 : role === "bot" ? 1.1 : 1.04;
+  return Math.min(2.0, Math.max(0.75, Number((baseRate * mult).toFixed(2))));
+}
+
+function restoreDefaultAudioLabel(rec) {
+  const labelEl = document.getElementById("audioUrlLabel");
+  if (!labelEl || !rec) return;
+  const cid = rec.conversation_id;
+  const isVoice = rec.channel === "voice call";
+  if (rec.raw_audio_url && state.realAudioCanPlay && !state.audioTtsEnabled) {
+    labelEl.textContent = `Запись телефонной линии · ${cid}`;
+  } else {
+    labelEl.textContent = isVoice
+      ? `Озвучка звонка · ${cid}`
+      : `Аудио-озвучка чата · ${cid}`;
+  }
+}
+
 function stopSpeechSynthesis() {
   state.lastSpokenTurnIdx = -1;
+  state.ttsSequencerActive = false;
+  state.ttsSequencerPaused = false;
+  if (state.ttsNextTurnTimer) {
+    clearTimeout(state.ttsNextTurnTimer);
+    state.ttsNextTurnTimer = null;
+  }
+  const ttsEl = document.getElementById("ttsVoicePlayer");
+  if (ttsEl) {
+    try {
+      ttsEl.pause();
+      ttsEl.removeAttribute("src");
+    } catch (_e) {}
+  }
   const audioEl = document.getElementById("callAudioPlayer");
   if (audioEl) {
     audioEl.volume = 1.0;
@@ -2329,6 +2458,166 @@ function stopSpeechSynthesis() {
       window.speechSynthesis.cancel();
     } catch (_e) {}
   }
+}
+
+function pauseTtsSequencer() {
+  state.ttsSequencerActive = false;
+  state.ttsSequencerPaused = true;
+  if (state.ttsNextTurnTimer) {
+    clearTimeout(state.ttsNextTurnTimer);
+    state.ttsNextTurnTimer = null;
+  }
+  const ttsEl = document.getElementById("ttsVoicePlayer");
+  if (ttsEl && !ttsEl.paused) {
+    try {
+      ttsEl.pause();
+    } catch (_e) {}
+  }
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (_e) {}
+  }
+  updateAudioPlayButtonIcon(false);
+}
+
+function playCurrentTtsChunk(rec) {
+  if (!state.ttsSequencerActive || !rec || state.activeId !== rec.conversation_id) return;
+  const ttsEl = document.getElementById("ttsVoicePlayer");
+  if (!ttsEl) return;
+
+  const turn = rec.transcript?.[state.ttsCurrentTurnIdx];
+  if (!turn) {
+    stopSpeechSynthesis();
+    updateAudioPlayButtonIcon(false);
+    restoreDefaultAudioLabel(rec);
+    return;
+  }
+
+  const chunk = state.ttsChunksQueue[state.ttsCurrentChunkIdx];
+  if (!chunk) {
+    // Advance to next spoken turn
+    const nextIdx = findFirstSpokenTurnIdx(rec.transcript, state.ttsCurrentTurnIdx + 1);
+    if (nextIdx >= 0) {
+      state.ttsNextTurnTimer = setTimeout(() => {
+        if (state.ttsSequencerActive && state.activeId === rec.conversation_id) {
+          startTtsSequencer(rec, nextIdx);
+        }
+      }, 240);
+    } else {
+      stopSpeechSynthesis();
+      updateAudioPlayButtonIcon(false);
+      restoreDefaultAudioLabel(rec);
+      const seekSlider = document.getElementById("customAudioSeekSlider");
+      if (seekSlider) {
+        seekSlider.value = "0";
+        seekSlider.style.setProperty("--progress", "0%");
+      }
+    }
+    return;
+  }
+
+  const urls = buildTtsUrlsForChunk(chunk, rec.language);
+  if (state.ttsCurrentUrlCandidateIdx < urls.length) {
+    const targetUrl = urls[state.ttsCurrentUrlCandidateIdx];
+    ttsEl.muted = false;
+    ttsEl.volume = 1.0;
+    ttsEl.src = targetUrl;
+    ttsEl.playbackRate = getSpeakerTtsPlaybackRate(turn.speaker);
+    ttsEl.play().catch((err) => {
+      if (err && err.name === "AbortError") return;
+      if (!state.ttsSequencerActive) return;
+      state.ttsCurrentUrlCandidateIdx += 1;
+      playCurrentTtsChunk(rec);
+    });
+  } else {
+    // Offline fallback if all cloud TTS endpoints are unreachable
+    const durMs = Math.max(1200, Math.min(4500, chunk.length * 55));
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        const utter = new SpeechSynthesisUtterance(chunk);
+        utter.lang = rec.language === "EN" ? "en-US" : "ru-RU";
+        utter.rate = getSpeakerTtsPlaybackRate(turn.speaker);
+        window.speechSynthesis.speak(utter);
+      } catch (_e) {}
+    }
+    state.ttsNextTurnTimer = setTimeout(() => {
+      if (!state.ttsSequencerActive || state.activeId !== rec.conversation_id) return;
+      state.ttsCurrentChunkIdx += 1;
+      state.ttsCurrentUrlCandidateIdx = 0;
+      playCurrentTtsChunk(rec);
+    }, durMs);
+  }
+}
+
+function startTtsSequencer(rec, startIdx = 0) {
+  if (!rec || !Array.isArray(rec.transcript) || !rec.transcript.length) return;
+  const audioEl = document.getElementById("callAudioPlayer");
+  if (audioEl && !audioEl.paused) {
+    audioEl.pause();
+  }
+  if (state.ttsNextTurnTimer) {
+    clearTimeout(state.ttsNextTurnTimer);
+    state.ttsNextTurnTimer = null;
+  }
+
+  let idx = findFirstSpokenTurnIdx(rec.transcript, startIdx);
+  if (idx < 0) {
+    idx = findFirstSpokenTurnIdx(rec.transcript, 0);
+  }
+  if (idx < 0) return;
+
+  state.ttsSequencerActive = true;
+  state.ttsSequencerPaused = false;
+  state.ttsCurrentTurnIdx = idx;
+  state.ttsCurrentChunkIdx = 0;
+  state.ttsCurrentUrlCandidateIdx = 0;
+  state.lastSpokenTurnIdx = idx;
+
+  const turn = rec.transcript[idx];
+  const cleanText = normalizeTextForTts(turn?.text || "");
+  state.ttsChunksQueue = splitTextIntoTtsChunks(cleanText);
+
+  updateAudioPlayButtonIcon(true);
+
+  // Highlight active replica card in transcript
+  const container = document.getElementById("transcriptContainer");
+  if (container) {
+    const prevActive = container.querySelector(".freedom-pulse");
+    if (prevActive) prevActive.classList.remove("freedom-pulse");
+    const targetEl = container.querySelector(`[data-line-index="${idx}"]`);
+    if (targetEl) {
+      targetEl.classList.add("freedom-pulse");
+      targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  // Update progress slider, timer, and status label
+  const ev = state.evaluations[rec.conversation_id];
+  const totalSec = getActiveTotalDurationSeconds(rec, ev);
+  const turnSec = getTurnOffsetSeconds(rec, turn, idx);
+  const pct =
+    rec.transcript.length > 1
+      ? Math.min(100, Math.max(0, (idx / (rec.transcript.length - 1)) * 100))
+      : 100;
+  const sliderEl = document.getElementById("customAudioSeekSlider");
+  const timeLabel = document.getElementById("customAudioTimeLabel");
+  const labelEl = document.getElementById("audioUrlLabel");
+
+  if (sliderEl && !sliderEl.classList.contains("is-dragging")) {
+    sliderEl.value = String(pct.toFixed(1));
+    sliderEl.style.setProperty("--progress", `${pct.toFixed(1)}%`);
+  }
+  if (timeLabel) {
+    timeLabel.textContent = `${formatMmSs(turnSec)} / ${formatMmSs(totalSec)}`;
+  }
+  if (labelEl) {
+    const sp = String(turn?.speaker || "").toLowerCase();
+    const roleLabel = sp === "client" ? "Клиент" : sp === "bot" ? "AI-Бот" : "Оператор";
+    labelEl.textContent = `🔊 Озвучка #${idx + 1}/${rec.transcript.length} (${roleLabel}) · ${rec.conversation_id}`;
+  }
+
+  playCurrentTtsChunk(rec);
 }
 
 function updateTtsButtonUI() {
@@ -2349,7 +2638,6 @@ function speakTranscriptTurnIfNeeded(currentSec) {
   const rec = state.records.find((r) => r.conversation_id === state.activeId);
   if (!rec || !Array.isArray(rec.transcript) || !rec.transcript.length) return;
 
-  // Find the active turn corresponding to currentSec
   let activeIdx = -1;
   for (let i = 0; i < rec.transcript.length; i++) {
     const t = rec.transcript[i];
@@ -2362,10 +2650,12 @@ function speakTranscriptTurnIfNeeded(currentSec) {
     }
   }
 
+  if (activeIdx < 0) {
+    activeIdx = findFirstSpokenTurnIdx(rec.transcript, 0);
+  }
   if (activeIdx < 0 || activeIdx === state.lastSpokenTurnIdx) return;
   state.lastSpokenTurnIdx = activeIdx;
 
-  // Highlight active turn in transcript container
   const container = document.getElementById("transcriptContainer");
   if (container) {
     const prevActive = container.querySelector(".freedom-pulse");
@@ -2376,46 +2666,6 @@ function speakTranscriptTurnIfNeeded(currentSec) {
       targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }
-
-  // Speak via Web Speech API if TTS is enabled and stream is synthesized (or chat)
-  if (!state.audioTtsEnabled || state.audioSourceKind === "real") return;
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-
-  const voices = window.speechSynthesis.getVoices() || [];
-  if (!voices.length) return;
-
-  const turn = rec.transcript[activeIdx];
-  const text = String(turn?.text || "").trim();
-  if (!text) return;
-
-  try {
-    const audioEl = document.getElementById("callAudioPlayer");
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    const langCode =
-      rec.language === "EN" ? "en-US" : rec.language === "KZ" ? "kk-KZ" : "ru-RU";
-    utter.lang = langCode;
-    const matchedVoice =
-      voices.find((v) => v.lang.toLowerCase().startsWith(langCode.slice(0, 2).toLowerCase())) ||
-      voices.find((v) => v.lang.toLowerCase().startsWith("ru")) ||
-      voices[0];
-    if (matchedVoice) utter.voice = matchedVoice;
-    utter.rate = Math.min(2.0, Math.max(0.8, (state.audioRate || 1.0) * 1.08));
-    const role = String(turn.speaker || "").toLowerCase();
-    utter.pitch = role === "client" ? 0.92 : role === "bot" ? 1.12 : 1.02;
-    utter.onstart = () => {
-      if (audioEl && state.audioSourceKind !== "real") {
-        audioEl.volume = 0.35;
-      }
-    };
-    utter.onend = () => {
-      if (audioEl) audioEl.volume = 1.0;
-    };
-    utter.onerror = () => {
-      if (audioEl) audioEl.volume = 1.0;
-    };
-    window.speechSynthesis.speak(utter);
-  } catch (_e) {}
 }
 
 async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
@@ -2423,6 +2673,7 @@ async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
   const labelEl = document.getElementById("audioUrlLabel");
   const audioEl = document.getElementById("callAudioPlayer");
 
+  state.realAudioCanPlay = false;
   if (audioEl) {
     audioEl.muted = false;
     audioEl.volume = 1.0;
@@ -2434,22 +2685,14 @@ async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
       labelEl.textContent = `Запись телефонной линии · ${cid}`;
     }
 
-    // Attempt to unwrap HTML/JSON wrapper or cache binary stream from rec.raw_audio_url
     const unwrappedUrl = await tryUnwrapRawAudioUrl(rec);
     if (state.activeId !== cid) return;
     if (unwrappedUrl && audioEl) {
-      const wasPlaying = !audioEl.paused;
-      const savedTime = audioEl.currentTime || 0;
+      state.realAudioCanPlay = true;
       if (audioEl.src !== unwrappedUrl) {
         audioEl.src = unwrappedUrl;
         audioEl.playbackRate = state.audioRate || 1.0;
         audioEl.volume = 1.0;
-        if (savedTime > 0) {
-          state.pendingAudioSeekSec = savedTime;
-        }
-        if (wasPlaying) {
-          audioEl.play().catch(() => {});
-        }
       }
       return;
     }
@@ -2457,7 +2700,7 @@ async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
     state.audioSourceKind = "synthesized";
     if (labelEl) {
       labelEl.textContent = isVoice
-        ? `Аудиодорожка звонка · ${cid}`
+        ? `Озвучка звонка · ${cid}`
         : `Аудио-озвучка чата · ${cid}`;
     }
   }
@@ -2474,46 +2717,38 @@ async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
     if (!resp.ok || state.activeId !== cid) return;
     const ctype = (resp.headers.get("Content-Type") || "").toLowerCase();
     const srcHeader = (resp.headers.get("X-Audio-Source") || "").toLowerCase();
-    const contentRange = resp.headers.get("Content-Range") || "";
-    const isOldSyntheticSize = contentRange.endsWith("/1440044");
-    if (ctype.startsWith("audio/") && (srcHeader === "real" || (!srcHeader && !isOldSyntheticSize && audioEl?.error))) {
+    if (ctype.startsWith("audio/") && srcHeader === "real") {
       state.audioSourceKind = "real";
+      state.realAudioCanPlay = true;
       state.resolvedRealAudioUrls[cid] = audioUrl;
-      if (audioEl && (audioEl.error || audioEl.src !== audioUrl)) {
-        const wasPlaying = !audioEl.paused;
-        const savedTime = audioEl.currentTime || 0;
+      if (audioEl && audioEl.src !== audioUrl) {
         audioEl.src = audioUrl;
         audioEl.playbackRate = state.audioRate || 1.0;
         audioEl.volume = 1.0;
-        if (savedTime > 0) {
-          state.pendingAudioSeekSec = savedTime;
-        }
-        if (wasPlaying) {
-          audioEl.play().catch(() => {});
-        }
       }
       if (labelEl) {
         labelEl.textContent = `Запись телефонной линии · ${cid}`;
       }
     }
-  } catch (_err) {
-    // Keep existing audioEl.src
-  }
+  } catch (_err) {}
 }
 
 function seekAudioToTimestamp(targetInput, lineIndex = null) {
   const rec = state.records.find((r) => r.conversation_id === state.activeId);
-  const ev = rec ? state.evaluations[rec.conversation_id] : null;
+  if (!rec) return;
+  const ev = state.evaluations[rec.conversation_id];
 
   let sec = null;
+  let targetIdx = lineIndex !== null ? Number(lineIndex) : -1;
+
   if (typeof targetInput === "number" && Number.isFinite(targetInput)) {
     sec = Math.max(0, targetInput);
-  } else if (lineIndex !== null && rec?.transcript?.[lineIndex]) {
-    sec = getTurnOffsetSeconds(rec, rec.transcript[lineIndex], lineIndex);
+  } else if (targetIdx >= 0 && rec.transcript?.[targetIdx]) {
+    sec = getTurnOffsetSeconds(rec, rec.transcript[targetIdx], targetIdx);
   } else {
     const parsed = parseTimestampToSeconds(String(targetInput || ""));
     if (parsed !== null) {
-      const firstTurn = rec?.transcript?.[0];
+      const firstTurn = rec.transcript?.[0];
       const firstSec = firstTurn ? parseTimestampToSeconds(String(firstTurn.timestamp || "")) : 0;
       if (
         firstSec !== null &&
@@ -2526,29 +2761,32 @@ function seekAudioToTimestamp(targetInput, lineIndex = null) {
       }
     }
   }
-  if (sec === null) return;
+  if (sec === null) sec = 0;
 
-  if (lineIndex !== null) {
-    scrollToTranscriptLine(lineIndex);
+  if (targetIdx < 0 && Array.isArray(rec.transcript)) {
+    for (let i = 0; i < rec.transcript.length; i++) {
+      const off = getTurnOffsetSeconds(rec, rec.transcript[i], i);
+      if (off + 0.5 >= sec && String(rec.transcript[i].speaker || "").toLowerCase() !== "system") {
+        targetIdx = i;
+        break;
+      }
+    }
+    if (targetIdx < 0) {
+      targetIdx = findFirstSpokenTurnIdx(rec.transcript, 0);
+    }
+  }
+
+  if (targetIdx >= 0) {
+    scrollToTranscriptLine(targetIdx);
   }
 
   const audioEl = document.getElementById("callAudioPlayer");
-  const sliderEl = document.getElementById("customAudioSeekSlider");
-  const timeLabel = document.getElementById("customAudioTimeLabel");
+  const useRealCallStream =
+    Boolean(rec.raw_audio_url) && state.realAudioCanPlay && !state.audioTtsEnabled && audioEl && !audioEl.error;
 
-  const totalSec = Math.max(sec + 1, getActiveTotalDurationSeconds(rec, ev));
-  state.lastSpokenTurnIdx = -1;
-
-  if (audioEl) {
-    audioEl.muted = false;
-    audioEl.volume = 1.0;
-    if ((!audioEl.getAttribute("src") || audioEl.error) && rec) {
-      const cid = rec.conversation_id;
-      audioEl.dataset.activeCid = cid;
-      audioEl.src =
-        state.resolvedRealAudioUrls[cid] || rec.raw_audio_url || getOrCreateClientWavUrl(rec, ev);
-      audioEl.playbackRate = state.audioRate || 1.0;
-    }
+  if (useRealCallStream) {
+    stopSpeechSynthesis();
+    const totalSec = Math.max(sec + 1, getActiveTotalDurationSeconds(rec, ev));
     if (audioEl.readyState >= 1) {
       try {
         audioEl.currentTime = Math.min(sec, Math.max(0, (audioEl.duration || totalSec) - 0.1));
@@ -2559,27 +2797,15 @@ function seekAudioToTimestamp(targetInput, lineIndex = null) {
     } else {
       state.pendingAudioSeekSec = sec;
     }
-    audioEl.play().catch((err) => {
-      if (err && err.name === "AbortError") return;
-      if (rec) {
-        state.audioSourceKind = "synthesized";
-        state.pendingAudioSeekSec = sec;
-        audioEl.src = getOrCreateClientWavUrl(rec, ev);
-        audioEl.playbackRate = state.audioRate || 1.0;
-        audioEl.volume = 1.0;
-        audioEl.play().catch(() => {});
-      }
+    audioEl.play().catch(() => {
+      startTtsSequencer(rec, Math.max(0, targetIdx));
     });
+  } else {
+    state.audioTtsEnabled = true;
+    updateTtsButtonUI();
+    startTtsSequencer(rec, Math.max(0, targetIdx));
   }
 
-  const pct = Math.min(100, Math.max(0, (sec / totalSec) * 100));
-  if (sliderEl) {
-    sliderEl.value = String(pct.toFixed(1));
-    sliderEl.style.setProperty("--progress", `${pct.toFixed(1)}%`);
-  }
-  if (timeLabel) {
-    timeLabel.textContent = `${formatMmSs(sec)} / ${formatMmSs(totalSec)}`;
-  }
   showToast(`Воспроизведение с ${formatMmSs(sec)}`);
 }
 
@@ -2801,6 +3027,8 @@ function renderActiveTranscript() {
     const totalSec = getActiveTotalDurationSeconds(rec, ev);
     if (audioPlayer.dataset.activeCid !== rec.conversation_id) {
       stopSpeechSynthesis();
+      state.ttsCurrentTurnIdx = 0;
+      state.ttsChunksQueue = [];
       audioPlayer.pause();
       const cid = rec.conversation_id;
       audioPlayer.dataset.activeCid = cid;
@@ -4090,85 +4318,108 @@ function initCqaApp() {
 
   // Кастомный аудиоплеер с червякообразным слайдером (Worm Slider)
   const audioEl = document.getElementById("callAudioPlayer");
+  const ttsEl = document.getElementById("ttsVoicePlayer");
   const playBtn = document.getElementById("customAudioPlayBtn");
   const seekSlider = document.getElementById("customAudioSeekSlider");
   const timeLabel = document.getElementById("customAudioTimeLabel");
   const ttsBtn = document.getElementById("audioTtsToggleBtn");
 
-  playBtn?.addEventListener("click", async () => {
-    if (!audioEl) return;
+  ttsEl?.addEventListener("ended", () => {
+    if (!state.ttsSequencerActive) return;
     const rec = state.records.find((r) => r.conversation_id === state.activeId);
-    const ev = rec ? state.evaluations[rec.conversation_id] : null;
-    audioEl.muted = false;
-    audioEl.volume = 1.0;
+    if (!rec) return;
+    state.ttsCurrentChunkIdx += 1;
+    state.ttsCurrentUrlCandidateIdx = 0;
+    playCurrentTtsChunk(rec);
+  });
 
-    if ((!audioEl.getAttribute("src") || audioEl.error) && rec) {
-      const cid = rec.conversation_id;
-      audioEl.dataset.activeCid = cid;
-      if (state.resolvedRealAudioUrls[cid]) {
-        state.audioSourceKind = "real";
-        audioEl.src = state.resolvedRealAudioUrls[cid];
-      } else if (rec.raw_audio_url) {
-        const unwrapped = await tryUnwrapRawAudioUrl(rec);
-        if (unwrapped) {
-          state.audioSourceKind = "real";
-          audioEl.src = unwrapped;
-        } else {
-          state.audioSourceKind = "synthesized";
-          audioEl.src = getOrCreateClientWavUrl(rec, ev);
-        }
-      } else {
-        state.audioSourceKind = "synthesized";
-        audioEl.src = getOrCreateClientWavUrl(rec, ev);
-      }
-      audioEl.playbackRate = state.audioRate || 1.0;
+  ttsEl?.addEventListener("error", () => {
+    if (!state.ttsSequencerActive) return;
+    const rec = state.records.find((r) => r.conversation_id === state.activeId);
+    if (!rec) return;
+    state.ttsCurrentUrlCandidateIdx += 1;
+    playCurrentTtsChunk(rec);
+  });
+
+  playBtn?.addEventListener("click", async () => {
+    const rec = state.records.find((r) => r.conversation_id === state.activeId);
+    if (!rec) return;
+
+    // 1. If TTS Sequencer is currently speaking -> Pause it
+    if (state.ttsSequencerActive) {
+      pauseTtsSequencer();
+      return;
     }
 
-    if (audioEl.paused) {
-      state.lastSpokenTurnIdx = -1;
-      audioEl.play().catch(async (err) => {
-        if (err && err.name === "AbortError") return;
-        if (rec) {
-          if (rec.raw_audio_url && !state.resolvedRealAudioUrls[rec.conversation_id]) {
-            const unwrapped = await tryUnwrapRawAudioUrl(rec);
-            if (unwrapped && audioEl.src !== unwrapped) {
-              state.audioSourceKind = "real";
-              audioEl.src = unwrapped;
-              audioEl.playbackRate = state.audioRate || 1.0;
-              audioEl.volume = 1.0;
-              audioEl.play().catch(() => {});
-              return;
-            }
-          }
-          state.audioSourceKind = "synthesized";
-          audioEl.src = getOrCreateClientWavUrl(rec, ev);
-          audioEl.playbackRate = state.audioRate || 1.0;
-          audioEl.volume = 1.0;
-          audioEl.play().catch((err2) => {
-            if (err2 && err2.name === "AbortError") return;
-            showToast(`Не удалось запустить воспроизведение: ${err2.message || "ошибка потока"}`);
-          });
-        }
+    // 2. If callAudioPlayer is currently playing -> Pause it
+    if (audioEl && !audioEl.paused) {
+      audioEl.pause();
+      updateAudioPlayButtonIcon(false);
+      return;
+    }
+
+    // 3. If TTS Sequencer was paused on this conversation -> Resume it
+    if (state.ttsSequencerPaused && state.ttsChunksQueue.length > 0) {
+      state.ttsSequencerActive = true;
+      state.ttsSequencerPaused = false;
+      updateAudioPlayButtonIcon(true);
+      if (ttsEl && ttsEl.getAttribute("src") && ttsEl.paused) {
+        ttsEl.play().catch(() => {
+          playCurrentTtsChunk(rec);
+        });
+      } else {
+        playCurrentTtsChunk(rec);
+      }
+      return;
+    }
+
+    // 4. Determine whether to play real call stream or Neural TTS Voiceover Sequencer
+    const canPlayReal =
+      Boolean(rec.raw_audio_url) &&
+      state.realAudioCanPlay &&
+      !state.audioTtsEnabled &&
+      audioEl &&
+      !audioEl.error;
+
+    if (canPlayReal) {
+      audioEl.muted = false;
+      audioEl.volume = 1.0;
+      audioEl.playbackRate = state.audioRate || 1.0;
+      audioEl.play().catch(() => {
+        state.audioTtsEnabled = true;
+        updateTtsButtonUI();
+        startTtsSequencer(rec, 0);
       });
     } else {
-      audioEl.pause();
-      stopSpeechSynthesis();
+      state.audioTtsEnabled = true;
+      updateTtsButtonUI();
+      startTtsSequencer(rec, 0);
+    }
+  });
+
+  audioEl?.addEventListener("canplay", () => {
+    const rec = state.records.find((r) => r.conversation_id === state.activeId);
+    if (!rec || !audioEl) return;
+    const cid = rec.conversation_id;
+    const src = String(audioEl.src || "");
+    if (rec.raw_audio_url && src && src !== state.clientWavUrls[cid]) {
+      state.realAudioCanPlay = true;
+      state.audioSourceKind = "real";
     }
   });
 
   audioEl?.addEventListener("error", async () => {
     const rec = state.records.find((r) => r.conversation_id === state.activeId);
-    const ev = rec ? state.evaluations[rec.conversation_id] : null;
     if (!rec || !audioEl) return;
     const cid = rec.conversation_id;
     const currentSrc = String(audioEl.src || "");
 
-    // If direct raw_audio_url returned HTML/JSON wrapper instead of raw audio, try unwrapping first
     if (rec.raw_audio_url && currentSrc === rec.raw_audio_url) {
       const unwrapped = await tryUnwrapRawAudioUrl(rec);
       if (state.activeId !== cid) return;
       if (unwrapped && unwrapped !== currentSrc) {
         state.audioSourceKind = "real";
+        state.realAudioCanPlay = true;
         audioEl.src = unwrapped;
         audioEl.playbackRate = state.audioRate || 1.0;
         audioEl.volume = 1.0;
@@ -4176,24 +4427,21 @@ function initCqaApp() {
       }
     }
 
-    if (!currentSrc.startsWith("blob:")) {
-      state.audioSourceKind = "synthesized";
-      audioEl.src = getOrCreateClientWavUrl(rec, ev);
-      audioEl.playbackRate = state.audioRate || 1.0;
-      audioEl.volume = 1.0;
-    }
+    state.realAudioCanPlay = false;
+    state.audioSourceKind = "synthesized";
   });
 
   audioEl?.addEventListener("play", () => {
     audioEl.muted = false;
-    if (audioEl.volume < 0.2) audioEl.volume = 1.0;
+    audioEl.volume = 1.0;
     updateAudioPlayButtonIcon(true);
     speakTranscriptTurnIfNeeded(audioEl.currentTime || 0);
   });
 
   audioEl?.addEventListener("pause", () => {
-    updateAudioPlayButtonIcon(false);
-    stopSpeechSynthesis();
+    if (!state.ttsSequencerActive) {
+      updateAudioPlayButtonIcon(false);
+    }
   });
 
   audioEl?.addEventListener("ended", () => {
@@ -4206,7 +4454,7 @@ function initCqaApp() {
   });
 
   const syncAudioDurationLabel = () => {
-    if (!audioEl) return;
+    if (!audioEl || state.ttsSequencerActive) return;
     if (state.pendingAudioSeekSec !== null && audioEl.readyState >= 1) {
       const targetSec = state.pendingAudioSeekSec;
       state.pendingAudioSeekSec = null;
@@ -4227,7 +4475,7 @@ function initCqaApp() {
   audioEl?.addEventListener("durationchange", syncAudioDurationLabel);
 
   audioEl?.addEventListener("timeupdate", () => {
-    if (!audioEl || seekSlider?.classList.contains("is-dragging")) return;
+    if (!audioEl || state.ttsSequencerActive || seekSlider?.classList.contains("is-dragging")) return;
     const rec = state.records.find((r) => r.conversation_id === state.activeId);
     const ev = rec ? state.evaluations[rec.conversation_id] : null;
     const totalSec = getActiveTotalDurationSeconds(rec, ev);
@@ -4246,23 +4494,19 @@ function initCqaApp() {
   });
 
   ttsBtn?.addEventListener("click", () => {
+    const rec = state.records.find((r) => r.conversation_id === state.activeId);
     state.audioTtsEnabled = !state.audioTtsEnabled;
     updateTtsButtonUI();
     if (!state.audioTtsEnabled) {
       stopSpeechSynthesis();
-      if (audioEl) {
-        audioEl.volume = 1.0;
-      }
+      updateAudioPlayButtonIcon(Boolean(audioEl && !audioEl.paused));
+      if (rec) restoreDefaultAudioLabel(rec);
       showToast("Голосовая озвучка TTS выключена");
     } else {
-      if (audioEl) {
-        audioEl.volume = 1.0;
+      if (rec) {
+        startTtsSequencer(rec, Math.max(0, state.ttsCurrentTurnIdx || 0));
       }
-      if (audioEl && !audioEl.paused) {
-        state.lastSpokenTurnIdx = -1;
-        speakTranscriptTurnIfNeeded(audioEl.currentTime || 0);
-      }
-      showToast("Голосовая озвучка реплик (TTS) включена");
+      showToast("Запущена голосовая озвучка реплик (TTS)");
     }
   });
 
@@ -4273,13 +4517,28 @@ function initCqaApp() {
     const pct = Number(e.target.value || 0);
     seekSlider.style.setProperty("--progress", `${pct}%`);
     const rec = state.records.find((r) => r.conversation_id === state.activeId);
-    const ev = rec ? state.evaluations[rec.conversation_id] : null;
+    if (!rec) return;
+    const ev = state.evaluations[rec.conversation_id];
     const totalSec = getActiveTotalDurationSeconds(rec, ev);
     const curSec = (pct / 100) * totalSec;
     if (timeLabel) {
       timeLabel.textContent = `${formatMmSs(curSec)} / ${formatMmSs(totalSec)}`;
     }
-    state.lastSpokenTurnIdx = -1;
+
+    if (state.ttsSequencerActive || state.ttsSequencerPaused || state.audioTtsEnabled || !state.realAudioCanPlay) {
+      const totalTurns = (rec.transcript || []).length;
+      if (totalTurns > 0) {
+        const targetIdx = Math.min(totalTurns - 1, Math.max(0, Math.floor((pct / 100) * totalTurns)));
+        if (state.ttsSequencerActive) {
+          startTtsSequencer(rec, targetIdx);
+        } else {
+          state.ttsCurrentTurnIdx = targetIdx;
+          scrollToTranscriptLine(targetIdx);
+        }
+      }
+      return;
+    }
+
     if (audioEl) {
       if (audioEl.readyState >= 1) {
         try {
@@ -4298,6 +4557,11 @@ function initCqaApp() {
       const rate = parseFloat(rateBtn.dataset.audioRate || "1");
       state.audioRate = rate;
       if (audioEl) audioEl.playbackRate = rate;
+      if (ttsEl) {
+        const rec = state.records.find((r) => r.conversation_id === state.activeId);
+        const curTurn = rec?.transcript?.[state.ttsCurrentTurnIdx];
+        ttsEl.playbackRate = getSpeakerTtsPlaybackRate(curTurn?.speaker);
+      }
       document.querySelectorAll("[data-audio-rate]").forEach((b) => {
         const active = parseFloat(b.dataset.audioRate || "1") === rate;
         b.className = active

@@ -565,6 +565,8 @@ class CQARequestHandler(BaseHTTPRequestHandler):
             elif path.startswith("/api/audio/"):
                 cid = urllib.parse.unquote(path.split("/api/audio/", 1)[1])
                 self._handle_audio_proxy(cid)
+            elif path == "/api/tts":
+                self._handle_tts_proxy(query)
             else:
                 self._serve_static(path)
         except Exception as exc:
@@ -1603,6 +1605,78 @@ class CQARequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def _handle_tts_proxy(self, query: Dict[str, List[str]]) -> None:
+        """
+        Proxies and caches neural TTS MP3 audio for replica voiceover (/api/tts?lang=ru&text=...).
+        """
+        import hashlib
+        import ssl
+
+        raw_text = (query.get("text", [""])[0] or "").strip()
+        lang_param = (query.get("lang", ["ru"])[0] or "ru").strip().lower()
+        if not raw_text:
+            self._send_json({"isSuccess": False, "error": "Empty text"}, status=400)
+            return
+
+        tl = "en" if lang_param.startswith("en") else "ru"
+        # Phonetic normalization of Kazakh Cyrillic letters so Russian neural TTS pronounces them cleanly
+        kz_map = str.maketrans({
+            "ә": "а", "Ә": "А",
+            "і": "и", "І": "И",
+            "ң": "н", "Ң": "Н",
+            "ғ": "г", "Ғ": "Г",
+            "ү": "у", "Ү": "У",
+            "ұ": "у", "Ұ": "У",
+            "қ": "к", "Қ": "К",
+            "ө": "о", "Ө": "О",
+            "һ": "х", "Һ": "Х",
+        })
+        norm_text = raw_text.translate(kz_map)[:180]
+        os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
+        digest = hashlib.md5(f"{tl}:{norm_text}".encode("utf-8")).hexdigest()
+        tts_cache_file = os.path.join(AUDIO_CACHE_DIR, f"tts_{digest}.mp3")
+
+        if os.path.exists(tts_cache_file) and os.path.getsize(tts_cache_file) > 128:
+            with open(tts_cache_file, "rb") as f:
+                data = f.read()
+            self.send_response(200)
+            self._send_cors_headers()
+            self.send_header("Content-Type", "audio/mpeg")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        q_enc = urllib.parse.quote(norm_text)
+        candidate_urls = [
+            f"https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl={tl}&q={q_enc}",
+            f"https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl={tl}&q={q_enc}",
+        ]
+        ssl_ctx = ssl.create_default_context()
+        headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "audio/*,*/*;q=0.8",
+        }
+        for url in candidate_urls:
+            try:
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=8, context=ssl_ctx) as resp:
+                    data = resp.read()
+                    if data and len(data) > 128:
+                        with open(tts_cache_file, "wb") as f:
+                            f.write(data)
+                        self.send_response(200)
+                        self._send_cors_headers()
+                        self.send_header("Content-Type", "audio/mpeg")
+                        self.send_header("Content-Length", str(len(data)))
+                        self.end_headers()
+                        self.wfile.write(data)
+                        return
+            except Exception:
+                continue
+
+        self._send_json({"isSuccess": False, "error": "TTS stream unavailable"}, status=502)
 
     def _serve_static(self, path: str) -> None:
         if path in ("", "/"):
