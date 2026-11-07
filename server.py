@@ -510,6 +510,7 @@ class CQARequestHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, Range")
+        self.send_header("Access-Control-Expose-Headers", "X-Audio-Source, Accept-Ranges, Content-Range")
 
     def _send_json(self, data: Any, status: int = 200) -> None:
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -1534,26 +1535,34 @@ class CQARequestHandler(BaseHTTPRequestHandler):
             row = cur.fetchone()
             conn.close()
 
-        if not row or not row["audio_url"]:
-            self._send_json({"isSuccess": False, "error": "Для данного диалога нет аудиозаписи"}, status=404)
+        if not row:
+            self._send_json({"isSuccess": False, "error": "Диалог не найден"}, status=404)
             return
 
         audio_url = row["audio_url"]
+        os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
         cache_file = os.path.join(AUDIO_CACHE_DIR, f"{cid}.wav")
         meta_file = os.path.join(AUDIO_CACHE_DIR, f"{cid}.meta.json")
 
-        real_file, _ = ensure_real_audio_file(cid, audio_url, AUDIO_CACHE_DIR)
+        real_file, source_kind = ensure_real_audio_file(cid, audio_url, AUDIO_CACHE_DIR) if audio_url else (None, "unavailable")
         if not real_file:
-            # Generate valid 16kHz PCM audio matching transcript turns so browser player & Range seeking always work
+            # Generate valid 16kHz PCM audio matching full transcript timeline so browser player & Range seeking always work
             transcript = enrich_transcript_with_offsets(json.loads(row["transcript_json"] or "[]"))
             build_synthetic_pcm16_from_transcript(transcript, cache_file)
             with open(meta_file, "w", encoding="utf-8") as mf:
                 json.dump({"content_type": "audio/wav", "synthesized_fallback": True}, mf)
+            audio_source_header = "synthesized"
+        else:
+            audio_source_header = "real"
 
         content_type = "audio/wav"
         if os.path.exists(meta_file):
             try:
-                content_type = json.load(open(meta_file)).get("content_type", "audio/wav")
+                with open(meta_file, "r", encoding="utf-8") as mf:
+                    meta_obj = json.load(mf)
+                    content_type = meta_obj.get("content_type", "audio/wav")
+                    if meta_obj.get("synthesized_fallback"):
+                        audio_source_header = "synthesized"
             except Exception:
                 pass
 
@@ -1567,16 +1576,17 @@ class CQARequestHandler(BaseHTTPRequestHandler):
                 start = int(byte_range[0]) if byte_range[0] else 0
                 end = int(byte_range[1]) if (len(byte_range) > 1 and byte_range[1]) else file_size - 1
                 end = min(end, file_size - 1)
-                chunk_len = end - start + 1
+                chunk_len = max(0, end - start + 1)
                 with open(cache_file, "rb") as f:
                     f.seek(start)
                     data = f.read(chunk_len)
                 self.send_response(206)
                 self._send_cors_headers()
                 self.send_header("Content-Type", content_type)
+                self.send_header("X-Audio-Source", audio_source_header)
                 self.send_header("Accept-Ranges", "bytes")
                 self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
-                self.send_header("Content-Length", str(chunk_len))
+                self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
                 return
@@ -1588,6 +1598,7 @@ class CQARequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self._send_cors_headers()
         self.send_header("Content-Type", content_type)
+        self.send_header("X-Audio-Source", audio_source_header)
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()

@@ -186,31 +186,62 @@ def get_pocketsphinx_status() -> Dict[str, Any]:
 
 def extract_audio_url_from_wrapper(raw_bytes: bytes, content_type: str = "") -> Optional[str]:
     """
-    Unwraps HTML (`<source src="...">`) or JSON (`{"audio_url": "..."}`) returned by Power Automate.
+    Unwraps HTML (`<source src="...">`), data URIs, or JSON (`{"audio_url": "..."}`) returned by Power Automate.
     """
     head = raw_bytes[:512].lstrip()
     if content_type.startswith("application/json") or head.startswith(b"{"):
         try:
             j = json.loads(raw_bytes.decode("utf-8", errors="ignore"))
-            if isinstance(j, dict) and j.get("audio_url"):
-                return str(j["audio_url"])
+            if isinstance(j, dict):
+                if j.get("audio_url"):
+                    return str(j["audio_url"])
+                if j.get("$content"):
+                    mime = j.get("$content-type", "audio/wav")
+                    return f"data:{mime};base64,{j['$content']}"
+                if isinstance(j.get("body"), dict) and j["body"].get("$content"):
+                    mime = j["body"].get("$content-type", "audio/wav")
+                    return f"data:{mime};base64,{j['body']['$content']}"
         except Exception:
             pass
 
+    lower_sample = raw_bytes[:65536].lower()
     if (
         content_type.startswith("text/html")
         or head.lower().startswith(b"<!doctype html")
         or head.lower().startswith(b"<html")
-        or b"<source " in raw_bytes[:4096].lower()
+        or b"<source" in lower_sample
+        or b"<audio" in lower_sample
+        or b"<video" in lower_sample
+        or b"data:audio/" in lower_sample
     ):
         text = raw_bytes.decode("utf-8", errors="ignore")
         m = re.search(r'<source[^>]+src=["\']([^"\']+)["\']', text, re.IGNORECASE)
         if not m:
             m = re.search(r'<audio[^>]+src=["\']([^"\']+)["\']', text, re.IGNORECASE)
+        if not m:
+            m = re.search(r'<video[^>]+src=["\']([^"\']+)["\']', text, re.IGNORECASE)
+        if not m:
+            m = re.search(r'(data:audio/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+)', text, re.IGNORECASE)
         if m:
             return html.unescape(m.group(1).strip())
 
     return None
+
+
+def is_valid_audio_bytes(raw_bytes: bytes) -> bool:
+    """Checks magic bytes for WAV (RIFF), MP3 (ID3 / MPEG sync), OGG (OggS), FLAC (fLaC), or MP4/M4A (ftyp)."""
+    if not raw_bytes or len(raw_bytes) < 64:
+        return False
+    head = raw_bytes[:16]
+    if head.startswith(b"RIFF") and raw_bytes[8:12] == b"WAVE":
+        return True
+    if head.startswith(b"ID3") or head.startswith(b"OggS") or head.startswith(b"fLaC"):
+        return True
+    if head[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2", b"\xff\xe3", b"\xff\xe2"):
+        return True
+    if raw_bytes[4:8] == b"ftyp":
+        return True
+    return False
 
 
 def is_html_or_json_wrapper(file_path: str) -> Optional[str]:
@@ -222,7 +253,7 @@ def is_html_or_json_wrapper(file_path: str) -> Optional[str]:
     try:
         with open(file_path, "rb") as f:
             sample = f.read(8192)
-        if sample.startswith(b"RIFF") or sample.startswith(b"ID3") or sample[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2", b"OggS"):
+        if is_valid_audio_bytes(sample):
             return None
         return extract_audio_url_from_wrapper(sample)
     except Exception:
@@ -260,43 +291,82 @@ def ensure_real_audio_file(cid: str, audio_url: Optional[str], audio_cache_dir: 
     """
     Ensures we have a genuine audio file on disk in `audio_cache_dir` for conversation `cid`.
     If the cached file is an HTML wrapper from Power Automate, extracts `<source src="...">` and fetches the stream.
-    If network is unavailable or SAS token expired, synthesizes a realistic 16kHz PCM diagnostic waveform so
-    CMU PocketSphinx can still run offline without errors.
+    If the cached file was previously generated as a `synthesized_fallback`, attempts to fetch the real stream first.
     """
+    import base64
+
     os.makedirs(audio_cache_dir, exist_ok=True)
     cache_file = os.path.join(audio_cache_dir, f"{cid}.wav")
     meta_file = os.path.join(audio_cache_dir, f"{cid}.meta.json")
 
-    # Fast path: if cache_file already exists and is a genuine RIFF WAV / MP3, return immediately
-    if os.path.exists(cache_file) and not is_html_or_json_wrapper(cache_file):
+    is_synthesized_cache = False
+    if os.path.exists(meta_file):
         try:
-            if os.path.getsize(cache_file) > 256:
+            with open(meta_file, "r", encoding="utf-8") as mf:
+                meta_obj = json.load(mf)
+                is_synthesized_cache = bool(meta_obj.get("synthesized_fallback"))
+        except Exception:
+            pass
+
+    # Fast path: if cache_file already exists, is NOT a synthetic fallback, and is a genuine RIFF WAV / MP3
+    if os.path.exists(cache_file) and not is_synthesized_cache and not is_html_or_json_wrapper(cache_file):
+        try:
+            with open(cache_file, "rb") as cf:
+                head_bytes = cf.read(64)
+            if os.path.getsize(cache_file) > 256 and is_valid_audio_bytes(head_bytes):
                 return cache_file, "cached_audio"
         except Exception:
             pass
 
-    inner_url = is_html_or_json_wrapper(cache_file)
+    inner_url = is_html_or_json_wrapper(cache_file) if not is_synthesized_cache else None
     target_url = inner_url or audio_url
-    if target_url and _can_resolve_host(target_url, timeout_sec=0.8):
-        try:
-            req = urllib.request.Request(target_url, headers={"User-Agent": "FreedomBroker-CQA/1.0"})
-            with urllib.request.urlopen(req, timeout=4) as resp:
-                ctype = resp.headers.get("Content-Type", "audio/wav")
-                raw_bytes = resp.read()
-                nested_url = extract_audio_url_from_wrapper(raw_bytes, ctype)
-                if nested_url and _can_resolve_host(nested_url, timeout_sec=0.8):
-                    req2 = urllib.request.Request(nested_url, headers={"User-Agent": "FreedomBroker-CQA/1.0"})
-                    with urllib.request.urlopen(req2, timeout=4) as resp2:
-                        raw_bytes = resp2.read()
-                        ctype = resp2.headers.get("Content-Type", "audio/mpeg")
-                if not extract_audio_url_from_wrapper(raw_bytes, ctype):
+    if target_url:
+        if target_url.startswith("data:"):
+            try:
+                header, b64_data = target_url.split(",", 1)
+                m_mime = re.match(r"data:([^;]+)", header)
+                ctype = m_mime.group(1) if m_mime else "audio/wav"
+                raw_bytes = base64.b64decode(b64_data)
+                if is_valid_audio_bytes(raw_bytes):
                     with open(cache_file, "wb") as f:
                         f.write(raw_bytes)
                     with open(meta_file, "w", encoding="utf-8") as mf:
-                        json.dump({"content_type": ctype, "unwrapped": True}, mf)
+                        json.dump({"content_type": ctype, "unwrapped": True, "synthesized_fallback": False}, mf)
                     return cache_file, "downloaded_stream"
-        except Exception:
-            pass
+            except Exception:
+                pass
+        elif _can_resolve_host(target_url, timeout_sec=3.0):
+            try:
+                browser_headers = {
+                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "audio/*,video/*,application/octet-stream,text/html,application/xhtml+xml,*/*;q=0.8",
+                }
+                req = urllib.request.Request(target_url, headers=browser_headers)
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    ctype = resp.headers.get("Content-Type", "audio/wav")
+                    raw_bytes = resp.read()
+                    nested_url = extract_audio_url_from_wrapper(raw_bytes, ctype)
+                    if nested_url:
+                        if nested_url.startswith("data:"):
+                            header, b64_data = nested_url.split(",", 1)
+                            m_mime = re.match(r"data:([^;]+)", header)
+                            ctype = m_mime.group(1) if m_mime else "audio/wav"
+                            raw_bytes = base64.b64decode(b64_data)
+                        else:
+                            nested_abs = urllib.parse.urljoin(target_url, nested_url)
+                            if _can_resolve_host(nested_abs, timeout_sec=3.0):
+                                req2 = urllib.request.Request(nested_abs, headers=browser_headers)
+                                with urllib.request.urlopen(req2, timeout=20) as resp2:
+                                    raw_bytes = resp2.read()
+                                    ctype = resp2.headers.get("Content-Type", "audio/mpeg")
+                    if is_valid_audio_bytes(raw_bytes) and not extract_audio_url_from_wrapper(raw_bytes, ctype):
+                        with open(cache_file, "wb") as f:
+                            f.write(raw_bytes)
+                        with open(meta_file, "w", encoding="utf-8") as mf:
+                            json.dump({"content_type": ctype, "unwrapped": True, "synthesized_fallback": False}, mf)
+                        return cache_file, "downloaded_stream"
+            except Exception:
+                pass
 
     return None, "unavailable"
 
@@ -307,31 +377,32 @@ def build_synthetic_pcm16_from_transcript(
     sample_rate: int = 16000,
 ) -> str:
     """
-    Generates a 16 kHz, 16-bit mono PCM WAV file whose speech bursts match the timing and cadence
+    Generates a 16 kHz, 16-bit mono PCM WAV file whose speech bursts match the full timing and cadence
     of the conversation turns (used as offline fallback when external Dynamics 365 SAS URLs expire).
     """
-    # Determine duration from transcript offsets or turn count
-    max_sec = 25.0
+    # Determine full duration from transcript offsets or turn count
+    max_sec = 15.0
     bursts: List[Tuple[float, float, float]] = []
     cur_t = 0.5
     for idx, turn in enumerate(transcript):
-        sp = (turn.get("speaker") or "system").lower()
-        if sp == "system":
-            continue
         txt = turn.get("text") or ""
         offset = turn.get("offset_seconds")
-        start_s = float(offset) if (offset is not None and float(offset) > 0) else cur_t
+        start_s = float(offset) if (offset is not None and float(offset) >= 0) else cur_t
+        sp = (turn.get("speaker") or "system").lower()
+        if sp == "system":
+            max_sec = max(max_sec, start_s + 1.0)
+            continue
         dur_s = max(0.8, min(6.0, len(txt) * 0.045))
         freq = 210.0 if sp == "operator" else (165.0 if sp == "client" else 260.0)
         bursts.append((start_s, start_s + dur_s, freq))
         cur_t = max(cur_t, start_s + dur_s + 0.6)
-        max_sec = max(max_sec, cur_t + 1.0)
+        max_sec = max(max_sec, start_s + dur_s + 1.5, cur_t + 1.0)
 
-    max_sec = min(max_sec, 45.0)
+    max_sec = min(max_sec, 900.0)
     total_samples = int(max_sec * sample_rate)
     buf = bytearray(total_samples * 2)
 
-    # Precompute 0.25s speech-like harmonic tile per base frequency for instant (<5ms) buffer filling
+    # Precompute 0.25s speech-like harmonic tile per base frequency for instant (<25ms) buffer filling
     tile_samples = sample_rate // 4
     tiles: Dict[float, bytes] = {}
     for base_freq in (165.0, 210.0, 260.0):
@@ -344,7 +415,7 @@ def build_synthetic_pcm16_from_transcript(
                 + 0.25 * math.sin(2.0 * math.pi * (base_freq * 2.0) * t)
                 + 0.15 * math.sin(2.0 * math.pi * (base_freq * 3.0) * t)
             )
-            tile_arr.append(int(max(-32000, min(32000, 9500.0 * syllable_env * sig))))
+            tile_arr.append(int(max(-32000, min(32000, 18000.0 * syllable_env * sig))))
         tiles[base_freq] = struct.pack(f"<{tile_samples}h", *tile_arr)
 
     for start_s, end_s, base_freq in bursts:

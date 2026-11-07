@@ -594,6 +594,21 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
       </button>
 
       <button
+        id="openApiKeyModalBtn"
+        type="button"
+        class="m3-morph-btn inline-flex items-center gap-2 px-3.5 py-2 bg-[#F1F5F9] hover:bg-slate-200/80 border border-slate-200/80 text-[#0F172A] text-xs font-bold whitespace-nowrap"
+        title="Настроить API-ключ и модель ИИ (Gemini / OpenAI / Ollama)"
+      >
+        <span id="apiKeyStatusDot" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+        <svg class="w-3.5 h-3.5 text-[#00A35B] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" />
+          <path d="m21 2-9.6 9.6" />
+          <circle cx="7.5" cy="15.5" r="5.5" />
+        </svg>
+        <span id="apiKeyBtnLabel">API ключ</span>
+      </button>
+
+      <button
         id="evaluateAllBtn"
         type="button"
         class="m3-morph-btn hidden xl:inline-flex items-center px-3.5 py-2 bg-[#F1F5F9] hover:bg-slate-200/80 text-[#334155] text-xs font-bold"
@@ -621,6 +636,16 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
       <span id="statTotalDialogs" class="font-display text-xs font-bold px-2 py-0.5 rounded-full bg-[#E8F8F0] text-[#064E3B]">3 / 3</span>
     </div>
     <div class="space-y-2 text-xs">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[#64748B]">Движок ИИ:</span>
+        <button
+          type="button"
+          id="kpiOpenApiKeyBtn"
+          class="font-display font-bold text-[#00A35B] hover:underline truncate max-w-[165px] text-right"
+        >
+          Встроенный (Задать ключ)
+        </button>
+      </div>
       <div class="flex items-center justify-between">
         <span class="text-[#64748B]">Скорость ядра:</span>
         <span class="font-display font-bold text-[#0F172A]">48 ms math / 1.2 s AI</span>
@@ -670,6 +695,10 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
           <button type="button" data-chip-filter="ALL" class="m3-filter-chip m3-filter-chip-active whitespace-nowrap px-3.5">
             <span>Все</span>
             <span id="chipCountAll" class="font-display text-[11px] font-bold opacity-80">3</span>
+          </button>
+          <button type="button" data-chip-filter="VOICE" class="m3-filter-chip whitespace-nowrap px-3.5">
+            <span>🔊 Звонки</span>
+            <span id="chipCountVoice" class="font-display text-[11px] font-bold opacity-75">0</span>
           </button>
           <button type="button" data-chip-filter="RU" class="m3-filter-chip whitespace-nowrap px-3.5">
             <span>RU</span>
@@ -732,7 +761,7 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
       </div>
 
       <!-- Кастомный аудиоплеер с червякообразным слайдером (Worm Slider) -->
-      <div id="audioPlayerContainer" class="hidden px-5 py-3.5 bg-[#F8FAFC] border-b border-slate-200/70 space-y-2">
+      <div id="audioPlayerContainer" class="px-5 py-3.5 bg-[#F8FAFC] border-b border-slate-200/70 space-y-2">
         <div class="flex items-center gap-3.5">
           <button
             id="customAudioPlayBtn"
@@ -746,20 +775,43 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
           </button>
 
           <div class="flex-1 min-w-0 space-y-1.5">
-            <div class="flex items-center justify-between text-[11px]">
-              <span id="audioUrlLabel" class="font-semibold text-[#334155] truncate">Запись телефонной линии</span>
-              <span id="customAudioTimeLabel" class="font-display font-bold text-[#0F172A]">00:00 / 02:49</span>
+            <div class="flex items-center justify-between gap-2 text-[11px]">
+              <div class="flex items-center gap-2 min-w-0">
+                <span id="audioUrlLabel" class="font-semibold text-[#334155] truncate">Запись телефонной линии</span>
+                <a
+                  id="audioExternalLink"
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="hidden text-[10px] font-bold text-[#00A35B] hover:underline shrink-0"
+                  title="Открыть прямой источник записи"
+                >
+                  Источник ↗
+                </a>
+              </div>
+              <span id="customAudioTimeLabel" class="font-display font-bold text-[#0F172A] shrink-0">00:00 / 00:00</span>
             </div>
             <input
               id="customAudioSeekSlider"
               type="range"
               min="0"
               max="100"
-              value="35"
+              step="0.2"
+              value="0"
+              style="--progress: 0%"
               aria-label="Позиция аудиозаписи"
               class="m3-worm-slider"
             />
           </div>
+
+          <button
+            id="audioTtsToggleBtn"
+            type="button"
+            title="Голосовая озвучка реплик (Web Speech TTS)"
+            class="m3-morph-btn px-2.5 py-1 text-[11px] font-bold bg-[#E8F8F0] text-[#064E3B] border border-[#00A35B]/25 shrink-0"
+          >
+            🔊 TTS
+          </button>
 
           <div class="flex items-center gap-1 bg-white border border-slate-200/80 rounded-full p-1 shrink-0">
             <button type="button" data-audio-rate="1" class="m3-morph-btn px-2.5 py-0.5 text-[11px] font-display font-bold bg-[#E8F8F0] text-[#064E3B]">
@@ -768,9 +820,12 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
             <button type="button" data-audio-rate="1.25" class="m3-morph-btn px-2.5 py-0.5 text-[11px] font-display font-bold text-[#64748B] hover:text-[#0F172A]">
               1.25x
             </button>
+            <button type="button" data-audio-rate="1.5" class="m3-morph-btn px-2.5 py-0.5 text-[11px] font-display font-bold text-[#64748B] hover:text-[#0F172A]">
+              1.5x
+            </button>
           </div>
         </div>
-        <audio id="callAudioPlayer" class="hidden"></audio>
+        <audio id="callAudioPlayer" preload="metadata" class="hidden"></audio>
       </div>
 
       <!-- Лента сообщений (Chat Feed) -->
@@ -1008,6 +1063,209 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
     </div>
   </div>
 
+  <!-- МОДАЛЬНОЕ ОКНО: НАСТРОЙКА API КЛЮЧА И ИИ-МОДЕЛИ -->
+  <div id="apiKeyModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+    <div class="m3-sheet-dialog bg-white rounded-3xl border border-slate-200/90 shadow-2xl max-w-xl w-full overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-2xl bg-[#E8F8F0] text-[#00A35B] flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" />
+              <path d="m21 2-9.6 9.6" />
+              <circle cx="7.5" cy="15.5" r="5.5" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h3 class="font-display text-base font-extrabold text-[#0F172A]">Настройка ИИ и API ключа</h3>
+            <p class="text-xs font-medium text-[#64748B] truncate">Подключение Google Gemini, OpenAI или локальной модели Ollama</p>
+          </div>
+        </div>
+        <button id="closeApiKeyModalBtn" type="button" class="m3-morph-btn w-8 h-8 bg-[#F1F5F9] hover:bg-slate-200 text-[#334155] font-bold text-xs flex items-center justify-center shrink-0">
+          ✕
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <!-- Статус текущего движка и ключа -->
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-[#F8FAFC] border border-slate-200/80 rounded-2xl px-4 py-3">
+          <div class="flex items-center gap-2 min-w-0">
+            <span id="llmModalStatusDot" class="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
+            <span id="llmModalStatusBadge" class="text-xs font-bold text-[#0F172A] truncate">
+              Встроенный гибридный движок (без внешнего API)
+            </span>
+          </div>
+          <span id="llmSavedKeyMaskBadge" class="hidden font-display text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#E8F8F0] text-[#064E3B]">
+            Ключ: AIza…
+          </span>
+        </div>
+
+        <!-- Поле вставки API-ключа -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label for="llmApiKeyInput" class="block text-xs font-bold text-[#0F172A]">
+              API-ключ (можно вставить ключ или целиком curl из AI Studio)
+            </label>
+            <div class="flex items-center gap-1.5">
+              <button
+                id="pasteApiKeyClipboardBtn"
+                type="button"
+                class="m3-morph-btn inline-flex items-center gap-1 px-2.5 py-1 bg-[#E8F8F0] hover:bg-[#d3f3e2] text-[#064E3B] text-[11px] font-bold"
+                title="Вставить ключ из буфера обмена"
+              >
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                </svg>
+                <span>Вставить</span>
+              </button>
+              <button
+                id="toggleApiKeyVisibilityBtn"
+                type="button"
+                class="m3-morph-btn px-2.5 py-1 bg-[#F1F5F9] hover:bg-slate-200 text-[#334155] text-[11px] font-bold"
+              >
+                Показать
+              </button>
+              <button
+                id="clearApiKeyBtn"
+                type="button"
+                class="m3-morph-btn hidden px-2.5 py-1 bg-[#FFE4E6] hover:bg-[#fecdd3] text-[#9F1239] text-[11px] font-bold"
+              >
+                Удалить ключ
+              </button>
+            </div>
+          </div>
+
+          <input
+            id="llmApiKeyInput"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Вставьте ключ Gemini (AIza… / AQ.…) или OpenAI (sk-…)"
+            class="w-full text-xs font-mono bg-[#F8FAFC] focus:bg-white border border-slate-200 rounded-2xl px-3.5 py-2.5 text-[#0F172A] placeholder-[#64748B] focus:outline-none focus:border-[#00A35B] transition"
+          />
+          <p class="text-[11px] text-[#64748B]">
+            При вставке ключа провайдер автоматически переключится на соответствующий API (Google Gemini или OpenAI).
+          </p>
+        </div>
+
+        <!-- Выбор провайдера и модели -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="llmProviderSelect" class="block text-xs font-bold text-[#0F172A] mb-1">
+              Провайдер ИИ
+            </label>
+            <select
+              id="llmProviderSelect"
+              class="w-full text-xs font-semibold bg-[#F8FAFC] focus:bg-white border border-slate-200 rounded-2xl px-3.5 py-2.5 text-[#0F172A] focus:outline-none focus:border-[#00A35B] transition"
+            >
+              <option value="gemini">Google Gemini API</option>
+              <option value="openai">OpenAI / Compatible API</option>
+              <option value="ollama">Ollama (локальная модель)</option>
+              <option value="builtin">Встроенный гибридный движок (Offline)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="llmModelInput" class="block text-xs font-bold text-[#0F172A] mb-1">
+              Модель
+            </label>
+            <input
+              id="llmModelInput"
+              type="text"
+              list="llmModelSuggestionsList"
+              value="gemini-flash-latest"
+              placeholder="gemini-flash-latest"
+              class="w-full text-xs font-semibold bg-[#F8FAFC] focus:bg-white border border-slate-200 rounded-2xl px-3.5 py-2.5 text-[#0F172A] focus:outline-none focus:border-[#00A35B] transition"
+            />
+            <datalist id="llmModelSuggestionsList">
+              <option value="gemini-flash-latest"></option>
+              <option value="gemini-2.5-flash"></option>
+              <option value="gemini-flash-lite-latest"></option>
+              <option value="gemini-pro-latest"></option>
+              <option value="gpt-4o-mini"></option>
+              <option value="gpt-4o"></option>
+              <option value="llama3.1:8b"></option>
+            </datalist>
+          </div>
+        </div>
+
+        <!-- Опциональный Base URL для OpenAI-совместимых API или Ollama -->
+        <div id="llmBaseUrlFieldWrap" class="hidden">
+          <label for="llmBaseUrlInput" class="block text-xs font-bold text-[#0F172A] mb-1">
+            Base URL (необязательно, для OpenRouter / vLLM / Ollama)
+          </label>
+          <input
+            id="llmBaseUrlInput"
+            type="text"
+            placeholder="https://api.openai.com/v1/chat/completions"
+            class="w-full text-xs font-mono bg-[#F8FAFC] focus:bg-white border border-slate-200 rounded-2xl px-3.5 py-2 text-[#0F172A] focus:outline-none focus:border-[#00A35B] transition"
+          />
+        </div>
+
+        <!-- Чекбокс автоматического пересчета -->
+        <label class="flex items-center gap-2.5 cursor-pointer select-none pt-1">
+          <input id="llmReevaluateAllCheckbox" type="checkbox" class="w-4 h-4 accent-[#00A35B] rounded" checked />
+          <span class="text-xs font-semibold text-[#334155]">
+            Переоценить диалоги набора выбранной ИИ-моделью после сохранения
+          </span>
+        </label>
+
+        <!-- Блок результата проверки подключения -->
+        <div id="llmTestResultBox" class="hidden rounded-2xl px-4 py-2.5 text-xs font-semibold"></div>
+      </div>
+
+      <div class="px-6 py-4 bg-[#F8FAFC] border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <button
+          id="testApiKeyBtn"
+          type="button"
+          class="m3-morph-btn px-4 py-2 text-xs font-bold text-[#064E3B] bg-[#E8F8F0] hover:bg-[#d3f3e2]"
+        >
+          Проверить подключение
+        </button>
+        <div class="flex items-center gap-2">
+          <button
+            id="cancelApiKeyModalBtn"
+            type="button"
+            class="m3-morph-btn px-4 py-2 text-xs font-bold text-[#334155] bg-white border border-slate-200/80 hover:bg-slate-100"
+          >
+            Отмена
+          </button>
+          <button
+            id="saveApiKeyBtn"
+            type="button"
+            class="m3-morph-btn px-5 py-2 text-xs font-bold text-white bg-[#00A35B] hover:bg-[#008A4C] shadow-sm"
+          >
+            Сохранить API ключ
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ИНДИКАТОР ФОНОВОЙ ПАКЕТНОЙ ОЦЕНКИ LLM -->
+  <div
+    id="llmJobFloatingBar"
+    class="fixed bottom-5 left-5 z-50 hidden bg-white border border-slate-200/90 rounded-2xl shadow-xl p-3.5 w-80 space-y-2"
+  >
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="w-2 h-2 rounded-full bg-[#00A35B] animate-ping shrink-0"></span>
+        <span id="llmJobTitle" class="font-display text-xs font-extrabold text-[#0F172A] truncate">LLM-оценка набора</span>
+      </div>
+      <button
+        id="cancelLlmJobBtn"
+        type="button"
+        class="m3-morph-btn px-2.5 py-0.5 text-[11px] font-bold bg-[#FFE4E6] text-[#9F1239]"
+      >
+        Стоп
+      </button>
+    </div>
+    <div id="llmJobSubtitle" class="text-[11px] font-medium text-[#64748B]">gemini-flash-latest · 0 / 0</div>
+    <div class="w-full h-1.5 rounded-full bg-[#F1F5F9] overflow-hidden">
+      <div id="llmJobProgressFill" class="h-full bg-[#00A35B] rounded-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+  </div>
+
   <!-- SNACKBAR TOAST -->
   <div
     id="toastNotification"
@@ -1052,11 +1310,28 @@ const state = {
   activeId: null,
   checklist: structuredClone(DEFAULT_CHECKLIST),
   evaluations: {},
+  llmConfig: {
+    provider: "builtin",
+    model: "gemini-flash-latest",
+    base_url: "",
+    has_api_key: false,
+    api_key_masked: "",
+    api_key_from_env: false,
+    llm_active: false
+  },
+  trackedJobId: null,
   supervisorMode: true,
   openCriterionIds: new Set([4]),
   focusedCriterionId: 4,
   displayedRingScore: 85.5,
-  audioRate: 1.0
+  audioRate: 1.0,
+  audioTtsEnabled: true,
+  audioSourceKind: "synthesized",
+  lastSpokenTurnIdx: -1,
+  pendingAudioSeekSec: null,
+  clientWavUrls: {},
+  resolvedRealAudioUrls: {},
+  unwrapInFlight: {}
 };
 
 async function apiRequest(endpoint, options = {}) {
@@ -1192,7 +1467,8 @@ async function apiRequest(endpoint, options = {}) {
             ? "MEDIUM"
             : "LOW"
       },
-      response_delays_seconds: risk.response_delays_seconds
+      response_delays_seconds: risk.response_delays_seconds,
+      meta: evaluation.meta || {}
     };
   };
   const loadCompatibleDataset = async (groupId) => {
@@ -1243,7 +1519,10 @@ async function apiRequest(endpoint, options = {}) {
       dataset_group_id: conversation.dataset_group_id,
       channel: conversation.channel,
       language: conversation.language,
-      audio_url: conversation.proxy_audio_url || conversation.audio_url,
+      audio_url:
+        conversation.proxy_audio_url ||
+        `/api/audio/${encodeURIComponent(conversation.conversation_id)}`,
+      raw_audio_url: conversation.audio_url || null,
       transcript: conversation.transcript
     }));
     const evaluations = Object.fromEntries(
@@ -1260,7 +1539,13 @@ async function apiRequest(endpoint, options = {}) {
     );
     return {
       response: listResult.response,
-      data: { data: { records }, evaluations, checklist }
+      data: {
+        data: { records },
+        evaluations,
+        checklist,
+        llm_config: stateResult.data.llm_config || null,
+        llm_job: stateResult.data.llm_job || null
+      }
     };
   };
 
@@ -1783,35 +2068,519 @@ function scrollToTranscriptLine(lineIndex) {
   }
 }
 
-function seekAudioToTimestamp(timestampStr) {
-  const sec = parseTimestampToSeconds(String(timestampStr || ""));
+function getTurnOffsetSeconds(rec, turn, idx = 0) {
+  if (turn && typeof turn.offset_seconds === "number" && Number.isFinite(turn.offset_seconds)) {
+    return Math.max(0, turn.offset_seconds);
+  }
+  const rawSec = parseTimestampToSeconds(String(turn?.timestamp || ""));
+  if (rawSec === null) return idx * 4;
+  const firstTurn = rec?.transcript?.[0];
+  const firstSec = firstTurn ? parseTimestampToSeconds(String(firstTurn.timestamp || "")) : 0;
+  if (firstSec !== null && rawSec >= firstSec && (firstSec > 3600 || String(turn?.timestamp || "").includes("T"))) {
+    return Math.max(0, Number((rawSec - firstSec).toFixed(1)));
+  }
+  return Math.max(0, rawSec);
+}
+
+function getActiveTotalDurationSeconds(rec, ev) {
+  const audioEl = document.getElementById("callAudioPlayer");
+  if (audioEl && Number.isFinite(audioEl.duration) && audioEl.duration > 1) {
+    return audioEl.duration;
+  }
+  const transcript = rec?.transcript || [];
+  const lastTurn = transcript[transcript.length - 1];
+  const lastOffset = lastTurn ? getTurnOffsetSeconds(rec, lastTurn, transcript.length - 1) : 0;
+  return Math.max(15, ev?.risk_metrics?.total_duration_seconds || 0, lastOffset + 4);
+}
+
+function getOrCreateClientWavUrl(rec, ev) {
+  if (!rec) return "";
+  const cid = rec.conversation_id;
+  if (state.clientWavUrls[cid]) {
+    return state.clientWavUrls[cid];
+  }
+
+  const transcript = rec.transcript || [];
+  const lastTurn = transcript[transcript.length - 1];
+  const lastOffset = lastTurn ? getTurnOffsetSeconds(rec, lastTurn, transcript.length - 1) : 0;
+  const durationSec = Math.min(
+    900,
+    Math.max(15, Math.ceil(Math.max(ev?.risk_metrics?.total_duration_seconds || 0, lastOffset + 5)))
+  );
+
+  const sampleRate = 8000;
+  const numSamples = durationSec * sampleRate;
+  const dataBytes = numSamples * 2;
+  const buffer = new ArrayBuffer(44 + dataBytes);
+  const view = new DataView(buffer);
+
+  const writeStr = (offset, str) => {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  };
+
+  // Standard 44-byte PCM WAV header
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + dataBytes, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true); // Subchunk1Size (PCM)
+  view.setUint16(20, 1, true); // AudioFormat = 1 (PCM)
+  view.setUint16(22, 1, true); // NumChannels = 1 (Mono)
+  view.setUint32(24, sampleRate, true); // SampleRate
+  view.setUint32(28, sampleRate * 2, true); // ByteRate
+  view.setUint16(32, 2, true); // BlockAlign
+  view.setUint16(34, 16, true); // BitsPerSample
+  writeStr(36, "data");
+  view.setUint32(40, dataBytes, true);
+
+  const samples = new Int16Array(buffer, 44, numSamples);
+
+  // Precompute 0.25s harmonic speech-cadence tiles for client (165Hz), operator (210Hz), bot (260Hz)
+  const tileLen = sampleRate >> 2;
+  const makeTile = (freq) => {
+    const tile = new Int16Array(tileLen);
+    for (let k = 0; k < tileLen; k++) {
+      const t = k / sampleRate;
+      const env = 0.55 + 0.45 * Math.sin(2 * Math.PI * 4.0 * t);
+      const sig =
+        0.6 * Math.sin(2 * Math.PI * freq * t) +
+        0.25 * Math.sin(2 * Math.PI * (freq * 2) * t) +
+        0.15 * Math.sin(2 * Math.PI * (freq * 3) * t);
+      tile[k] = Math.max(-32000, Math.min(32000, Math.round(18000 * env * sig)));
+    }
+    return tile;
+  };
+  const tiles = {
+    client: makeTile(165),
+    operator: makeTile(210),
+    bot: makeTile(260)
+  };
+
+  let curT = 0.4;
+  for (let i = 0; i < transcript.length; i++) {
+    const turn = transcript[i];
+    const sp = String(turn.speaker || "system").toLowerCase();
+    if (sp === "system") continue;
+    const off = getTurnOffsetSeconds(rec, turn, i);
+    const startSec = off >= 0 ? off : curT;
+    const durSec = Math.max(0.8, Math.min(5.5, String(turn.text || "").length * 0.045));
+    const tile = tiles[sp] || tiles.operator;
+    const i0 = Math.max(0, Math.floor(startSec * sampleRate));
+    const i1 = Math.min(numSamples, Math.floor((startSec + durSec) * sampleRate));
+    for (let s = i0; s < i1; s++) {
+      samples[s] = tile[(s - i0) % tileLen];
+    }
+    curT = Math.max(curT, startSec + durSec + 0.5);
+  }
+
+  const blob = new Blob([buffer], { type: "audio/wav" });
+  const blobUrl = URL.createObjectURL(blob);
+  state.clientWavUrls[cid] = blobUrl;
+  return blobUrl;
+}
+
+function isValidAudioBytesClient(uint8) {
+  if (!uint8 || uint8.length < 64) return false;
+  // RIFF....WAVE
+  if (
+    uint8[0] === 0x52 &&
+    uint8[1] === 0x49 &&
+    uint8[2] === 0x46 &&
+    uint8[3] === 0x46 &&
+    uint8[8] === 0x57 &&
+    uint8[9] === 0x41 &&
+    uint8[10] === 0x56 &&
+    uint8[11] === 0x45
+  ) {
+    return true;
+  }
+  // ID3 or OggS or fLaC
+  if (
+    (uint8[0] === 0x49 && uint8[1] === 0x44 && uint8[2] === 0x33) ||
+    (uint8[0] === 0x4f && uint8[1] === 0x67 && uint8[2] === 0x67 && uint8[3] === 0x53) ||
+    (uint8[0] === 0x66 && uint8[1] === 0x4c && uint8[2] === 0x61 && uint8[3] === 0x43)
+  ) {
+    return true;
+  }
+  // MPEG sync frame
+  if (
+    uint8[0] === 0xff &&
+    (uint8[1] === 0xfb || uint8[1] === 0xf3 || uint8[1] === 0xf2 || uint8[1] === 0xe3 || uint8[1] === 0xe2)
+  ) {
+    return true;
+  }
+  // ftyp (MP4/M4A)
+  if (uint8[4] === 0x66 && uint8[5] === 0x74 && uint8[6] === 0x79 && uint8[7] === 0x70) {
+    return true;
+  }
+  return false;
+}
+
+function extractAudioUrlFromWrapperClient(text, baseUrl) {
+  if (!text) return null;
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const j = JSON.parse(trimmed);
+      if (j && typeof j === "object") {
+        if (j.audio_url) return String(j.audio_url);
+        if (j.url) return String(j.url);
+        if (j.$content) {
+          const mime = j["$content-type"] || "audio/wav";
+          return `data:${mime};base64,${j.$content}`;
+        }
+        if (j.body && typeof j.body === "object" && j.body.$content) {
+          const mime = j.body["$content-type"] || "audio/wav";
+          return `data:${mime};base64,${j.body.$content}`;
+        }
+      }
+    } catch (_e) {}
+  }
+
+  const mSource =
+    text.match(/<source[^>]+src=["']([^"']+)["']/i) ||
+    text.match(/<audio[^>]+src=["']([^"']+)["']/i) ||
+    text.match(/<video[^>]+src=["']([^"']+)["']/i) ||
+    text.match(/(data:audio\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+)/i);
+  if (mSource && mSource[1]) {
+    const rawHref = mSource[1]
+      .replace(/&amp;/g, "&")
+      .replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .trim();
+    if (rawHref.startsWith("data:") || rawHref.startsWith("http://") || rawHref.startsWith("https://")) {
+      return rawHref;
+    }
+    try {
+      return new URL(rawHref, baseUrl).href;
+    } catch (_e) {
+      return rawHref;
+    }
+  }
+  return null;
+}
+
+async function tryUnwrapRawAudioUrl(rec) {
+  if (!rec || !rec.raw_audio_url) return null;
+  const cid = rec.conversation_id;
+  if (state.resolvedRealAudioUrls[cid]) {
+    return state.resolvedRealAudioUrls[cid];
+  }
+  if (state.unwrapInFlight[cid]) {
+    return state.unwrapInFlight[cid];
+  }
+
+  const promise = (async () => {
+    try {
+      const resp = await window.fetch(rec.raw_audio_url, {
+        method: "GET",
+        headers: {
+          Accept: "audio/*,video/*,application/octet-stream,text/html,application/json,*/*;q=0.8"
+        }
+      });
+      if (!resp.ok) return null;
+      const ctype = (resp.headers.get("Content-Type") || "").toLowerCase();
+      const buf = await resp.arrayBuffer();
+      const uint8 = new Uint8Array(buf);
+      if (isValidAudioBytesClient(uint8)) {
+        const mime = ctype.startsWith("audio/") ? ctype.split(";")[0] : "audio/wav";
+        const blobUrl = URL.createObjectURL(new Blob([buf], { type: mime }));
+        state.resolvedRealAudioUrls[cid] = blobUrl;
+        return blobUrl;
+      }
+      const text = new TextDecoder("utf-8").decode(uint8.slice(0, 262144));
+      const innerUrl = extractAudioUrlFromWrapperClient(text, rec.raw_audio_url);
+      if (innerUrl) {
+        state.resolvedRealAudioUrls[cid] = innerUrl;
+        return innerUrl;
+      }
+    } catch (_e) {
+      // Cross-origin fetch may be blocked by CORS; <audio src="rec.raw_audio_url"> still works directly
+    } finally {
+      delete state.unwrapInFlight[cid];
+    }
+    return null;
+  })();
+
+  state.unwrapInFlight[cid] = promise;
+  return promise;
+}
+
+function updateAudioPlayButtonIcon(isPlaying) {
+  const playIcon = document.getElementById("customAudioPlayIcon");
+  if (!playIcon) return;
+  if (isPlaying) {
+    playIcon.innerHTML = `<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>`;
+  } else {
+    playIcon.innerHTML = `<polygon points="6,4 20,12 6,20" />`;
+  }
+}
+
+function stopSpeechSynthesis() {
+  state.lastSpokenTurnIdx = -1;
+  const audioEl = document.getElementById("callAudioPlayer");
+  if (audioEl) {
+    audioEl.volume = 1.0;
+  }
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (_e) {}
+  }
+}
+
+function updateTtsButtonUI() {
+  const btn = document.getElementById("audioTtsToggleBtn");
+  if (!btn) return;
+  if (state.audioTtsEnabled) {
+    btn.className =
+      "m3-morph-btn px-2.5 py-1 text-[11px] font-bold bg-[#E8F8F0] text-[#064E3B] border border-[#00A35B]/25 shrink-0";
+    btn.textContent = "🔊 TTS Вкл";
+  } else {
+    btn.className =
+      "m3-morph-btn px-2.5 py-1 text-[11px] font-bold bg-white text-[#64748B] border border-slate-200/80 shrink-0";
+    btn.textContent = "🔇 TTS Выкл";
+  }
+}
+
+function speakTranscriptTurnIfNeeded(currentSec) {
+  const rec = state.records.find((r) => r.conversation_id === state.activeId);
+  if (!rec || !Array.isArray(rec.transcript) || !rec.transcript.length) return;
+
+  // Find the active turn corresponding to currentSec
+  let activeIdx = -1;
+  for (let i = 0; i < rec.transcript.length; i++) {
+    const t = rec.transcript[i];
+    if (String(t.speaker || "").toLowerCase() === "system") continue;
+    const off = getTurnOffsetSeconds(rec, t, i);
+    if (currentSec + 0.35 >= off) {
+      activeIdx = i;
+    } else {
+      break;
+    }
+  }
+
+  if (activeIdx < 0 || activeIdx === state.lastSpokenTurnIdx) return;
+  state.lastSpokenTurnIdx = activeIdx;
+
+  // Highlight active turn in transcript container
+  const container = document.getElementById("transcriptContainer");
+  if (container) {
+    const prevActive = container.querySelector(".freedom-pulse");
+    if (prevActive) prevActive.classList.remove("freedom-pulse");
+    const targetEl = container.querySelector(`[data-line-index="${activeIdx}"]`);
+    if (targetEl) {
+      targetEl.classList.add("freedom-pulse");
+      targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  // Speak via Web Speech API if TTS is enabled and stream is synthesized (or chat)
+  if (!state.audioTtsEnabled || state.audioSourceKind === "real") return;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+  const voices = window.speechSynthesis.getVoices() || [];
+  if (!voices.length) return;
+
+  const turn = rec.transcript[activeIdx];
+  const text = String(turn?.text || "").trim();
+  if (!text) return;
+
+  try {
+    const audioEl = document.getElementById("callAudioPlayer");
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    const langCode =
+      rec.language === "EN" ? "en-US" : rec.language === "KZ" ? "kk-KZ" : "ru-RU";
+    utter.lang = langCode;
+    const matchedVoice =
+      voices.find((v) => v.lang.toLowerCase().startsWith(langCode.slice(0, 2).toLowerCase())) ||
+      voices.find((v) => v.lang.toLowerCase().startsWith("ru")) ||
+      voices[0];
+    if (matchedVoice) utter.voice = matchedVoice;
+    utter.rate = Math.min(2.0, Math.max(0.8, (state.audioRate || 1.0) * 1.08));
+    const role = String(turn.speaker || "").toLowerCase();
+    utter.pitch = role === "client" ? 0.92 : role === "bot" ? 1.12 : 1.02;
+    utter.onstart = () => {
+      if (audioEl && state.audioSourceKind !== "real") {
+        audioEl.volume = 0.35;
+      }
+    };
+    utter.onend = () => {
+      if (audioEl) audioEl.volume = 1.0;
+    };
+    utter.onerror = () => {
+      if (audioEl) audioEl.volume = 1.0;
+    };
+    window.speechSynthesis.speak(utter);
+  } catch (_e) {}
+}
+
+async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
+  const cid = rec.conversation_id;
+  const labelEl = document.getElementById("audioUrlLabel");
+  const audioEl = document.getElementById("callAudioPlayer");
+
+  if (audioEl) {
+    audioEl.muted = false;
+    audioEl.volume = 1.0;
+  }
+
+  if (rec.raw_audio_url) {
+    state.audioSourceKind = "real";
+    if (labelEl) {
+      labelEl.textContent = `Запись телефонной линии · ${cid}`;
+    }
+
+    // Attempt to unwrap HTML/JSON wrapper or cache binary stream from rec.raw_audio_url
+    const unwrappedUrl = await tryUnwrapRawAudioUrl(rec);
+    if (state.activeId !== cid) return;
+    if (unwrappedUrl && audioEl) {
+      const wasPlaying = !audioEl.paused;
+      const savedTime = audioEl.currentTime || 0;
+      if (audioEl.src !== unwrappedUrl) {
+        audioEl.src = unwrappedUrl;
+        audioEl.playbackRate = state.audioRate || 1.0;
+        audioEl.volume = 1.0;
+        if (savedTime > 0) {
+          state.pendingAudioSeekSec = savedTime;
+        }
+        if (wasPlaying) {
+          audioEl.play().catch(() => {});
+        }
+      }
+      return;
+    }
+  } else {
+    state.audioSourceKind = "synthesized";
+    if (labelEl) {
+      labelEl.textContent = isVoice
+        ? `Аудиодорожка звонка · ${cid}`
+        : `Аудио-озвучка чата · ${cid}`;
+    }
+  }
+
+  if (!isVoice && !rec.raw_audio_url) {
+    return;
+  }
+
+  try {
+    const resp = await window.fetch(audioUrl, {
+      method: "GET",
+      headers: { Range: "bytes=0-1" }
+    });
+    if (!resp.ok || state.activeId !== cid) return;
+    const ctype = (resp.headers.get("Content-Type") || "").toLowerCase();
+    const srcHeader = (resp.headers.get("X-Audio-Source") || "").toLowerCase();
+    const contentRange = resp.headers.get("Content-Range") || "";
+    const isOldSyntheticSize = contentRange.endsWith("/1440044");
+    if (ctype.startsWith("audio/") && (srcHeader === "real" || (!srcHeader && !isOldSyntheticSize && audioEl?.error))) {
+      state.audioSourceKind = "real";
+      state.resolvedRealAudioUrls[cid] = audioUrl;
+      if (audioEl && (audioEl.error || audioEl.src !== audioUrl)) {
+        const wasPlaying = !audioEl.paused;
+        const savedTime = audioEl.currentTime || 0;
+        audioEl.src = audioUrl;
+        audioEl.playbackRate = state.audioRate || 1.0;
+        audioEl.volume = 1.0;
+        if (savedTime > 0) {
+          state.pendingAudioSeekSec = savedTime;
+        }
+        if (wasPlaying) {
+          audioEl.play().catch(() => {});
+        }
+      }
+      if (labelEl) {
+        labelEl.textContent = `Запись телефонной линии · ${cid}`;
+      }
+    }
+  } catch (_err) {
+    // Keep existing audioEl.src
+  }
+}
+
+function seekAudioToTimestamp(targetInput, lineIndex = null) {
+  const rec = state.records.find((r) => r.conversation_id === state.activeId);
+  const ev = rec ? state.evaluations[rec.conversation_id] : null;
+
+  let sec = null;
+  if (typeof targetInput === "number" && Number.isFinite(targetInput)) {
+    sec = Math.max(0, targetInput);
+  } else if (lineIndex !== null && rec?.transcript?.[lineIndex]) {
+    sec = getTurnOffsetSeconds(rec, rec.transcript[lineIndex], lineIndex);
+  } else {
+    const parsed = parseTimestampToSeconds(String(targetInput || ""));
+    if (parsed !== null) {
+      const firstTurn = rec?.transcript?.[0];
+      const firstSec = firstTurn ? parseTimestampToSeconds(String(firstTurn.timestamp || "")) : 0;
+      if (
+        firstSec !== null &&
+        parsed >= firstSec &&
+        (firstSec > 3600 || String(targetInput || "").includes("T"))
+      ) {
+        sec = Math.max(0, Number((parsed - firstSec).toFixed(1)));
+      } else {
+        sec = Math.max(0, parsed);
+      }
+    }
+  }
   if (sec === null) return;
+
+  if (lineIndex !== null) {
+    scrollToTranscriptLine(lineIndex);
+  }
 
   const audioEl = document.getElementById("callAudioPlayer");
   const sliderEl = document.getElementById("customAudioSeekSlider");
   const timeLabel = document.getElementById("customAudioTimeLabel");
 
-  const rec = state.records.find((r) => r.conversation_id === state.activeId);
-  const ev = rec ? state.evaluations[rec.conversation_id] : null;
-  const totalSec = Math.max(sec, ev?.risk_metrics?.total_duration_seconds || 169);
+  const totalSec = Math.max(sec + 1, getActiveTotalDurationSeconds(rec, ev));
+  state.lastSpokenTurnIdx = -1;
 
   if (audioEl) {
-    try {
-      audioEl.currentTime = sec;
-    } catch (_e) {
-      // Игнорируем ошибку, если внешний аудиопоток еще не буферизован
+    audioEl.muted = false;
+    audioEl.volume = 1.0;
+    if ((!audioEl.getAttribute("src") || audioEl.error) && rec) {
+      const cid = rec.conversation_id;
+      audioEl.dataset.activeCid = cid;
+      audioEl.src =
+        state.resolvedRealAudioUrls[cid] || rec.raw_audio_url || getOrCreateClientWavUrl(rec, ev);
+      audioEl.playbackRate = state.audioRate || 1.0;
     }
+    if (audioEl.readyState >= 1) {
+      try {
+        audioEl.currentTime = Math.min(sec, Math.max(0, (audioEl.duration || totalSec) - 0.1));
+        state.pendingAudioSeekSec = null;
+      } catch (_e) {
+        state.pendingAudioSeekSec = sec;
+      }
+    } else {
+      state.pendingAudioSeekSec = sec;
+    }
+    audioEl.play().catch((err) => {
+      if (err && err.name === "AbortError") return;
+      if (rec) {
+        state.audioSourceKind = "synthesized";
+        state.pendingAudioSeekSec = sec;
+        audioEl.src = getOrCreateClientWavUrl(rec, ev);
+        audioEl.playbackRate = state.audioRate || 1.0;
+        audioEl.volume = 1.0;
+        audioEl.play().catch(() => {});
+      }
+    });
   }
 
   const pct = Math.min(100, Math.max(0, (sec / totalSec) * 100));
   if (sliderEl) {
-    sliderEl.value = String(Math.round(pct));
+    sliderEl.value = String(pct.toFixed(1));
     sliderEl.style.setProperty("--progress", `${pct.toFixed(1)}%`);
   }
   if (timeLabel) {
     timeLabel.textContent = `${formatMmSs(sec)} / ${formatMmSs(totalSec)}`;
   }
-  showToast(`Аудио перемотано на ${formatMmSs(sec)}`);
+  showToast(`Воспроизведение с ${formatMmSs(sec)}`);
 }
 
 // --- Обновление шапки и Popover телеметрии ---
@@ -1840,6 +2609,9 @@ function renderTopHeaderStats() {
   const statTokEl = document.getElementById("statCostTokens");
   if (statTokEl) statTokEl.textContent = `${tokens.toLocaleString("ru-RU")} tok ($${cost})`;
 
+  const voiceCount = state.records.filter(
+    (r) => r.channel === "voice call" || Boolean(r.raw_audio_url)
+  ).length;
   const ruCount = state.records.filter((r) => r.language === "RU").length;
   const kzCount = state.records.filter((r) => r.language === "KZ").length;
   const enCount = state.records.filter((r) => r.language === "EN").length;
@@ -1853,6 +2625,7 @@ function renderTopHeaderStats() {
     if (el) el.textContent = String(v);
   };
   setTxt("chipCountAll", totalCount);
+  setTxt("chipCountVoice", voiceCount);
   setTxt("chipCountRU", ruCount);
   setTxt("chipCountKZ", kzCount);
   setTxt("chipCountEN", enCount);
@@ -1892,7 +2665,9 @@ function renderConversationList() {
     const cid = String(rec.conversation_id);
     const ev = state.evaluations[cid];
 
-    if (chip === "RU" || chip === "KZ" || chip === "EN") {
+    if (chip === "VOICE") {
+      if (rec.channel !== "voice call" && !rec.raw_audio_url) return false;
+    } else if (chip === "RU" || chip === "KZ" || chip === "EN") {
       if (rec.language !== chip) return false;
     } else if (chip === "CRITICAL") {
       const isCrit =
@@ -2009,23 +2784,53 @@ function renderActiveTranscript() {
   }
 
   if (audioBox && audioPlayer) {
-    if (rec.audio_url) {
-      audioBox.classList.remove("hidden");
-      if (audioPlayer.src !== rec.audio_url) {
-        audioPlayer.src = rec.audio_url;
-        audioPlayer.playbackRate = state.audioRate || 1.0;
+    const targetAudioUrl =
+      rec.audio_url || `/api/audio/${encodeURIComponent(rec.conversation_id)}`;
+    audioBox.classList.remove("hidden");
+
+    const extLinkEl = document.getElementById("audioExternalLink");
+    if (extLinkEl) {
+      if (rec.raw_audio_url) {
+        extLinkEl.href = rec.raw_audio_url;
+        extLinkEl.classList.remove("hidden");
+      } else {
+        extLinkEl.classList.add("hidden");
       }
+    }
+
+    const totalSec = getActiveTotalDurationSeconds(rec, ev);
+    if (audioPlayer.dataset.activeCid !== rec.conversation_id) {
+      stopSpeechSynthesis();
+      audioPlayer.pause();
+      const cid = rec.conversation_id;
+      audioPlayer.dataset.activeCid = cid;
+      audioPlayer.muted = false;
+      audioPlayer.volume = 1.0;
+      if (state.resolvedRealAudioUrls[cid]) {
+        state.audioSourceKind = "real";
+        audioPlayer.src = state.resolvedRealAudioUrls[cid];
+      } else if (rec.raw_audio_url) {
+        state.audioSourceKind = "real";
+        audioPlayer.src = rec.raw_audio_url;
+      } else {
+        state.audioSourceKind = "synthesized";
+        audioPlayer.src = getOrCreateClientWavUrl(rec, ev);
+      }
+      audioPlayer.playbackRate = state.audioRate || 1.0;
+      state.pendingAudioSeekSec = null;
+      updateAudioPlayButtonIcon(false);
       if (sliderEl) {
-        sliderEl.value = "35";
-        sliderEl.style.setProperty("--progress", "35%");
+        sliderEl.value = "0";
+        sliderEl.style.setProperty("--progress", "0%");
       }
       if (timeLabel) {
-        timeLabel.textContent = `00:58 / ${formatMmSs(risk.total_duration_seconds || 169)}`;
+        timeLabel.textContent = `00:00 / ${formatMmSs(totalSec)}`;
       }
-    } else {
-      audioBox.classList.add("hidden");
-      audioPlayer.pause();
+      probeAudioSourceKind(rec, ev, targetAudioUrl, isVoice);
+    } else if (audioPlayer.paused && timeLabel && !audioPlayer.currentTime) {
+      timeLabel.textContent = `00:00 / ${formatMmSs(totalSec)}`;
     }
+    updateTtsButtonUI();
   }
 
   transcriptBox.innerHTML = "";
@@ -2033,8 +2838,16 @@ function renderActiveTranscript() {
 
   (rec.transcript || []).forEach((turn, idx) => {
     const speaker = String(turn.speaker || "").toLowerCase();
-    const timestamp = String(turn.timestamp || "00:00");
-    const safeTimestamp = timestamp.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const rawTs = String(turn.timestamp || "00:00");
+    const turnOffsetSec = getTurnOffsetSeconds(rec, turn, idx);
+    const displayTimestamp =
+      turn.formatted_offset ||
+      (rawTs.includes("T") || rawTs.length > 10 ? formatMmSs(turnOffsetSec) : rawTs);
+    const safeTimestamp = String(displayTimestamp)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
     const safeText = String(turn.text || "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -2087,9 +2900,9 @@ function renderActiveTranscript() {
                 type="button"
                 data-seek-ts="${safeTimestamp}"
                 class="font-display font-bold text-[#00A35B] hover:underline cursor-pointer"
-                title="Перемотать аудио на ${safeTimestamp}"
+                title="Перемотать и воспроизвести с ${safeTimestamp}"
               >
-                ${safeTimestamp}
+                ▶ ${safeTimestamp}
               </button>
             </div>
             <div class="max-w-full whitespace-pre-wrap break-words rounded-3xl rounded-tl-sm bg-[#F1F5F9] px-4 py-3 text-xs leading-relaxed text-[#0F172A]">
@@ -2107,9 +2920,9 @@ function renderActiveTranscript() {
                 type="button"
                 data-seek-ts="${safeTimestamp}"
                 class="font-display font-bold text-[#00A35B] hover:underline cursor-pointer"
-                title="Перемотать аудио на ${safeTimestamp}"
+                title="Перемотать и воспроизвести с ${safeTimestamp}"
               >
-                ${safeTimestamp}
+                ▶ ${safeTimestamp}
               </button>
               <span class="font-bold text-[#064E3B]">${speaker === "bot" ? "AIM · AI-ассистент" : "Оператор Freedom"}</span>
               <svg class="w-3.5 h-3.5 text-[#00A35B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
@@ -2129,7 +2942,7 @@ function renderActiveTranscript() {
 
     row.querySelector("[data-seek-ts]")?.addEventListener("click", (e) => {
       e.stopPropagation();
-      seekAudioToTimestamp(turn.timestamp);
+      seekAudioToTimestamp(turnOffsetSec, idx);
     });
 
     transcriptBox.appendChild(row);
@@ -2479,7 +3292,14 @@ function renderEvaluationPanel() {
     });
 
     acc.querySelector(`[data-jump-line]`)?.addEventListener("click", () => {
-      scrollToTranscriptLine(crit.evidence_line_index);
+      const lineIdx = Number(crit.evidence_line_index || 0);
+      const rec = state.records.find((r) => r.conversation_id === state.activeId);
+      if (rec?.transcript?.[lineIdx]) {
+        const offsetSec = getTurnOffsetSeconds(rec, rec.transcript[lineIdx], lineIdx);
+        seekAudioToTimestamp(offsetSec, lineIdx);
+      } else {
+        scrollToTranscriptLine(lineIdx);
+      }
     });
 
     acc.querySelector(`[data-open-appeal]`)?.addEventListener("click", () => {
@@ -2534,6 +3354,13 @@ async function loadDataset(groupId = "DEV") {
     state.records = data?.data?.records || [];
     state.evaluations = data?.evaluations || {};
     if (data?.checklist) state.checklist = data.checklist;
+    if (data?.llm_config) {
+      state.llmConfig = data.llm_config;
+      updateApiKeyHeaderUI();
+    }
+    if (data?.llm_job && data.llm_job.status === "running" && state.trackedJobId !== data.llm_job.id) {
+      trackLlmJob(data.llm_job);
+    }
     const countLabel = document.getElementById(`seg${cleanGroup}Count`);
     if (countLabel) countLabel.textContent = `(${state.records.length})`;
 
@@ -2561,6 +3388,9 @@ async function loadDataset(groupId = "DEV") {
 
 async function evaluateSingleConversation(conversationId) {
   if (!conversationId) return;
+  if (state.llmConfig?.llm_active) {
+    showToast(`Оценка через ${state.llmConfig.model || "LLM"}…`);
+  }
   try {
     const resp = await apiRequest(
       `/api/evaluate/${encodeURIComponent(conversationId)}?group_id=${encodeURIComponent(
@@ -2576,7 +3406,7 @@ async function evaluateSingleConversation(conversationId) {
       renderConversationList();
       renderActiveTranscript();
       renderEvaluationPanel();
-      showToast(`Диалог ${conversationId} пересчитан`);
+      showToast(data.message || `Диалог ${conversationId} пересчитан`);
       return;
     }
   } catch (error) {
@@ -2593,6 +3423,11 @@ async function evaluateAllDataset() {
     });
     const data = await resp.json();
     if (!resp.ok || !data.isSuccess) throw new Error(data.error || "Не удалось оценить набор");
+    if (data.job) {
+      trackLlmJob(data.job);
+      showToast(data.message || "Запущена пакетная LLM-оценка диалогов");
+      return;
+    }
     if (data.evaluations) state.evaluations = data.evaluations;
     renderTopHeaderStats();
     renderConversationList();
@@ -2853,10 +3688,357 @@ async function saveAndApplyChecklist() {
     if (!response.ok || !data.isSuccess) throw new Error(data.error || "Не удалось сохранить чек-лист");
     closeChecklistModal();
     await loadDataset(state.groupId);
+    if (data.job) trackLlmJob(data.job);
     showToast("Конфигурация чек-листа сохранена и применена");
   } catch (error) {
     showToast(error.message || "Не удалось сохранить чек-лист");
   }
+}
+
+// --- Настройка API ключа и ИИ-модели (Gemini / OpenAI / Ollama) ---
+
+let llmJobTimer = null;
+
+function updateApiKeyHeaderUI() {
+  const cfg = state.llmConfig || {};
+  const isActive = Boolean(cfg.llm_active);
+  const hasKey = Boolean(cfg.has_api_key || cfg.api_key_from_env);
+
+  const headerDot = document.getElementById("apiKeyStatusDot");
+  const headerLabel = document.getElementById("apiKeyBtnLabel");
+  const kpiLink = document.getElementById("kpiOpenApiKeyBtn");
+
+  if (headerDot) {
+    headerDot.className = isActive
+      ? "w-2 h-2 rounded-full bg-[#00A35B] shrink-0"
+      : hasKey
+      ? "w-2 h-2 rounded-full bg-amber-500 shrink-0"
+      : "w-2 h-2 rounded-full bg-slate-400 shrink-0";
+  }
+  if (headerLabel) {
+    headerLabel.textContent = isActive ? `API: ${cfg.model || cfg.provider}` : "API ключ";
+  }
+  if (kpiLink) {
+    kpiLink.textContent = isActive
+      ? `${cfg.model || cfg.provider} (${cfg.api_key_masked || "активен"})`
+      : "Встроенный (Задать ключ)";
+  }
+
+  const modalDot = document.getElementById("llmModalStatusDot");
+  const modalBadge = document.getElementById("llmModalStatusBadge");
+  const maskBadge = document.getElementById("llmSavedKeyMaskBadge");
+  const clearBtn = document.getElementById("clearApiKeyBtn");
+
+  if (modalDot) {
+    modalDot.className = isActive
+      ? "w-2.5 h-2.5 rounded-full bg-[#00A35B] shrink-0"
+      : cfg.provider && cfg.provider !== "builtin"
+      ? "w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"
+      : "w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0";
+  }
+  if (modalBadge) {
+    if (isActive) {
+      modalBadge.textContent = `Активен внешний ИИ: ${cfg.model || cfg.provider}`;
+    } else if (cfg.provider && cfg.provider !== "builtin") {
+      modalBadge.textContent = `Выбран ${cfg.provider.toUpperCase()}, но API-ключ не задан — работает встроенный движок`;
+    } else {
+      modalBadge.textContent = "Встроенный гибридный движок (без внешнего API)";
+    }
+  }
+  if (maskBadge) {
+    if (cfg.has_api_key && cfg.api_key_masked) {
+      maskBadge.textContent = `Ключ: ${cfg.api_key_masked}`;
+      maskBadge.classList.remove("hidden");
+    } else if (cfg.api_key_from_env) {
+      maskBadge.textContent = "Ключ из ENV";
+      maskBadge.classList.remove("hidden");
+    } else {
+      maskBadge.classList.add("hidden");
+    }
+  }
+  if (clearBtn) {
+    clearBtn.classList.toggle("hidden", !cfg.has_api_key);
+  }
+}
+
+function syncLlmModalFields() {
+  const cfg = state.llmConfig || {};
+  const provEl = document.getElementById("llmProviderSelect");
+  const modelEl = document.getElementById("llmModelInput");
+  const baseEl = document.getElementById("llmBaseUrlInput");
+  const keyEl = document.getElementById("llmApiKeyInput");
+
+  // Если провайдер еще builtin и ключа нет, по умолчанию в модалке выбираем gemini для удобной вставки ключа
+  const initialProvider =
+    cfg.provider && cfg.provider !== "builtin"
+      ? cfg.provider
+      : cfg.has_api_key
+      ? cfg.provider
+      : "gemini";
+  if (provEl) provEl.value = initialProvider;
+  if (modelEl) modelEl.value = cfg.model || "gemini-flash-latest";
+  if (baseEl) baseEl.value = cfg.base_url || "";
+  if (keyEl) {
+    keyEl.value = "";
+    keyEl.placeholder = cfg.has_api_key
+      ? `Ключ сохранён (${cfg.api_key_masked}). Вставьте новый для замены...`
+      : "Вставьте ключ Gemini (AIza… / AQ.…) или OpenAI (sk-…)";
+  }
+  updateLlmBaseUrlVisibility();
+  showLlmTestBanner("", "hidden");
+}
+
+function updateLlmBaseUrlVisibility() {
+  const provider = document.getElementById("llmProviderSelect")?.value || "gemini";
+  const wrap = document.getElementById("llmBaseUrlFieldWrap");
+  if (wrap) {
+    wrap.classList.toggle("hidden", !(provider === "openai" || provider === "ollama"));
+  }
+}
+
+function showLlmTestBanner(message, kind = "ok") {
+  const box = document.getElementById("llmTestResultBox");
+  if (!box) return;
+  if (!message || kind === "hidden") {
+    box.classList.add("hidden");
+    box.textContent = "";
+    return;
+  }
+  box.classList.remove("hidden");
+  if (kind === "error") {
+    box.className = "rounded-2xl px-4 py-2.5 text-xs font-semibold bg-[#FFE4E6] text-[#9F1239] border border-[#FECDD3]";
+  } else if (kind === "loading") {
+    box.className = "rounded-2xl px-4 py-2.5 text-xs font-semibold bg-[#F1F5F9] text-[#334155] border border-slate-200";
+  } else {
+    box.className = "rounded-2xl px-4 py-2.5 text-xs font-semibold bg-[#E8F8F0] text-[#064E3B] border border-[#00A35B]/30";
+  }
+  box.textContent = message;
+}
+
+async function openApiKeyModal() {
+  const modal = document.getElementById("apiKeyModal");
+  if (!modal) return;
+  document.getElementById("kpiDetailsPopover")?.classList.add("hidden");
+
+  try {
+    const resp = await apiRequest("/api/settings/llm");
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.isSuccess && data.llm_config) {
+        state.llmConfig = data.llm_config;
+      }
+    }
+  } catch (_e) {
+    // Используем локальное состояние при офлайн-режиме
+  }
+
+  updateApiKeyHeaderUI();
+  syncLlmModalFields();
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+  setTimeout(() => document.getElementById("llmApiKeyInput")?.focus(), 60);
+}
+
+function closeApiKeyModal() {
+  const modal = document.getElementById("apiKeyModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function detectProviderFromKeyInput(rawText) {
+  const txt = String(rawText || "").trim();
+  if (!txt) return;
+  const provEl = document.getElementById("llmProviderSelect");
+  const modelEl = document.getElementById("llmModelInput");
+  if (!provEl) return;
+
+  if (/^sk-[A-Za-z0-9_\-]{12,}/.test(txt)) {
+    provEl.value = "openai";
+    if (modelEl && (!modelEl.value || modelEl.value.startsWith("gemini"))) {
+      modelEl.value = "gpt-4o-mini";
+    }
+  } else if (/AIza[0-9A-Za-z_\-]{20,}|AQ\.[0-9A-Za-z_\-\.]{15,}|x-goog-api-key|generativelanguage/i.test(txt)) {
+    provEl.value = "gemini";
+    if (modelEl && (!modelEl.value || !modelEl.value.startsWith("gemini"))) {
+      modelEl.value = "gemini-flash-latest";
+    }
+  } else if (provEl.value === "builtin") {
+    provEl.value = "gemini";
+  }
+  updateLlmBaseUrlVisibility();
+}
+
+function readLlmModalPayload() {
+  return {
+    provider: document.getElementById("llmProviderSelect")?.value || "gemini",
+    model: (document.getElementById("llmModelInput")?.value || "").trim(),
+    api_key: (document.getElementById("llmApiKeyInput")?.value || "").trim(),
+    base_url: (document.getElementById("llmBaseUrlInput")?.value || "").trim()
+  };
+}
+
+async function testLlmApiKeyConnection() {
+  const payload = readLlmModalPayload();
+  const btn = document.getElementById("testApiKeyBtn");
+  if (btn) btn.disabled = true;
+  showLlmTestBanner("Проверяем подключение к API…", "loading");
+
+  try {
+    const resp = await apiRequest("/api/settings/llm/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.isSuccess) {
+      showLlmTestBanner(data.error || "Ошибка проверки API-ключа", "error");
+      return;
+    }
+    const test = data.test || {};
+    showLlmTestBanner(test.message || "Проверка завершена", test.ok ? "ok" : "error");
+  } catch (err) {
+    showLlmTestBanner(`Не удалось проверить подключение: ${err.message}`, "error");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function saveLlmApiKeySettings() {
+  const payload = readLlmModalPayload();
+  const reevaluateAll = Boolean(document.getElementById("llmReevaluateAllCheckbox")?.checked);
+  const saveBtn = document.getElementById("saveApiKeyBtn");
+  if (saveBtn) saveBtn.disabled = true;
+  showLlmTestBanner("Сохраняем ключ и проверяем подключение…", "loading");
+
+  try {
+    const resp = await apiRequest("/api/settings/llm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...payload,
+        test: true,
+        reevaluate_all: reevaluateAll
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.isSuccess) {
+      showLlmTestBanner(data.error || "Ошибка сохранения настроек", "error");
+      showToast(data.error || "Ошибка сохранения API-ключа");
+      return;
+    }
+
+    if (data.llm_config) {
+      state.llmConfig = data.llm_config;
+      updateApiKeyHeaderUI();
+    }
+
+    if (data.test && !data.test.ok) {
+      showLlmTestBanner(data.test.message || "Ключ сохранён, но тестовый вызов вернул ошибку", "error");
+      showToast(data.message || "Проверьте правильность API-ключа");
+      return;
+    }
+
+    showLlmTestBanner(data.message || "API-ключ успешно сохранён", "ok");
+    showToast(data.message || "API-ключ сохранён");
+    closeApiKeyModal();
+
+    if (data.job) {
+      trackLlmJob(data.job);
+    } else if (reevaluateAll) {
+      await loadDataset(state.groupId);
+    }
+  } catch (err) {
+    showLlmTestBanner(`Ошибка: ${err.message}`, "error");
+    showToast(err.message || "Не удалось сохранить API-ключ");
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+async function clearSavedLlmApiKey() {
+  try {
+    const resp = await apiRequest("/api/settings/llm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clear_api_key: true, provider: "builtin", test: false })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.isSuccess && data.llm_config) {
+      state.llmConfig = data.llm_config;
+      updateApiKeyHeaderUI();
+      syncLlmModalFields();
+      showLlmTestBanner("Сохранённый API-ключ удалён. Включён встроенный гибридный движок.", "ok");
+      showToast("API-ключ удалён");
+    }
+  } catch (err) {
+    showToast(err.message || "Ошибка удаления ключа");
+  }
+}
+
+function renderLlmJobBar(job) {
+  const bar = document.getElementById("llmJobFloatingBar");
+  if (!bar) return;
+  if (!job) {
+    bar.classList.add("hidden");
+    return;
+  }
+  bar.classList.remove("hidden");
+  const titleEl = document.getElementById("llmJobTitle");
+  const subEl = document.getElementById("llmJobSubtitle");
+  const fillEl = document.getElementById("llmJobProgressFill");
+  const pct = job.total ? Math.round((job.done / job.total) * 100) : 0;
+
+  if (titleEl) titleEl.textContent = job.reason || "LLM-оценка набора";
+  if (subEl) {
+    subEl.textContent = `${job.model || "LLM"} · ${job.done} / ${job.total} (OK: ${job.llm_ok || 0}${
+      job.fallback ? `, резерв: ${job.fallback}` : ""
+    })`;
+  }
+  if (fillEl) fillEl.style.width = `${pct}%`;
+}
+
+function trackLlmJob(job) {
+  if (!job) return;
+  state.trackedJobId = job.id;
+  renderLlmJobBar(job);
+  if (llmJobTimer) clearInterval(llmJobTimer);
+  llmJobTimer = setInterval(pollLlmJob, 1600);
+}
+
+async function pollLlmJob() {
+  try {
+    const resp = await apiRequest("/api/jobs/current");
+    const data = await resp.json();
+    const job = data?.job;
+    if (!job || job.id !== state.trackedJobId) {
+      clearInterval(llmJobTimer);
+      llmJobTimer = null;
+      renderLlmJobBar(null);
+      return;
+    }
+    renderLlmJobBar(job);
+    if (job.status !== "running") {
+      clearInterval(llmJobTimer);
+      llmJobTimer = null;
+      setTimeout(() => renderLlmJobBar(null), 3500);
+      await loadDataset(state.groupId);
+      showToast(
+        job.status === "cancelled"
+          ? `LLM-оценка остановлена (${job.done}/${job.total})`
+          : `LLM-оценка завершена: ${job.llm_ok} диалогов через ${job.model}`
+      );
+    }
+  } catch (_e) {
+    clearInterval(llmJobTimer);
+    llmJobTimer = null;
+  }
+}
+
+async function cancelLlmJob() {
+  try {
+    await apiRequest("/api/jobs/cancel", { method: "POST" });
+  } catch (_e) {}
 }
 
 // --- Инициализация событий и шорткатов ---
@@ -2909,20 +4091,178 @@ function initCqaApp() {
   // Кастомный аудиоплеер с червякообразным слайдером (Worm Slider)
   const audioEl = document.getElementById("callAudioPlayer");
   const playBtn = document.getElementById("customAudioPlayBtn");
-  const playIcon = document.getElementById("customAudioPlayIcon");
   const seekSlider = document.getElementById("customAudioSeekSlider");
   const timeLabel = document.getElementById("customAudioTimeLabel");
+  const ttsBtn = document.getElementById("audioTtsToggleBtn");
 
-  playBtn?.addEventListener("click", () => {
+  playBtn?.addEventListener("click", async () => {
     if (!audioEl) return;
-    if (audioEl.paused) {
-      audioEl.play().catch(() => {});
-      if (playIcon) {
-        playIcon.innerHTML = `<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>`;
+    const rec = state.records.find((r) => r.conversation_id === state.activeId);
+    const ev = rec ? state.evaluations[rec.conversation_id] : null;
+    audioEl.muted = false;
+    audioEl.volume = 1.0;
+
+    if ((!audioEl.getAttribute("src") || audioEl.error) && rec) {
+      const cid = rec.conversation_id;
+      audioEl.dataset.activeCid = cid;
+      if (state.resolvedRealAudioUrls[cid]) {
+        state.audioSourceKind = "real";
+        audioEl.src = state.resolvedRealAudioUrls[cid];
+      } else if (rec.raw_audio_url) {
+        const unwrapped = await tryUnwrapRawAudioUrl(rec);
+        if (unwrapped) {
+          state.audioSourceKind = "real";
+          audioEl.src = unwrapped;
+        } else {
+          state.audioSourceKind = "synthesized";
+          audioEl.src = getOrCreateClientWavUrl(rec, ev);
+        }
+      } else {
+        state.audioSourceKind = "synthesized";
+        audioEl.src = getOrCreateClientWavUrl(rec, ev);
       }
+      audioEl.playbackRate = state.audioRate || 1.0;
+    }
+
+    if (audioEl.paused) {
+      state.lastSpokenTurnIdx = -1;
+      audioEl.play().catch(async (err) => {
+        if (err && err.name === "AbortError") return;
+        if (rec) {
+          if (rec.raw_audio_url && !state.resolvedRealAudioUrls[rec.conversation_id]) {
+            const unwrapped = await tryUnwrapRawAudioUrl(rec);
+            if (unwrapped && audioEl.src !== unwrapped) {
+              state.audioSourceKind = "real";
+              audioEl.src = unwrapped;
+              audioEl.playbackRate = state.audioRate || 1.0;
+              audioEl.volume = 1.0;
+              audioEl.play().catch(() => {});
+              return;
+            }
+          }
+          state.audioSourceKind = "synthesized";
+          audioEl.src = getOrCreateClientWavUrl(rec, ev);
+          audioEl.playbackRate = state.audioRate || 1.0;
+          audioEl.volume = 1.0;
+          audioEl.play().catch((err2) => {
+            if (err2 && err2.name === "AbortError") return;
+            showToast(`Не удалось запустить воспроизведение: ${err2.message || "ошибка потока"}`);
+          });
+        }
+      });
     } else {
       audioEl.pause();
-      if (playIcon) playIcon.innerHTML = `<polygon points="6,4 20,12 6,20" />`;
+      stopSpeechSynthesis();
+    }
+  });
+
+  audioEl?.addEventListener("error", async () => {
+    const rec = state.records.find((r) => r.conversation_id === state.activeId);
+    const ev = rec ? state.evaluations[rec.conversation_id] : null;
+    if (!rec || !audioEl) return;
+    const cid = rec.conversation_id;
+    const currentSrc = String(audioEl.src || "");
+
+    // If direct raw_audio_url returned HTML/JSON wrapper instead of raw audio, try unwrapping first
+    if (rec.raw_audio_url && currentSrc === rec.raw_audio_url) {
+      const unwrapped = await tryUnwrapRawAudioUrl(rec);
+      if (state.activeId !== cid) return;
+      if (unwrapped && unwrapped !== currentSrc) {
+        state.audioSourceKind = "real";
+        audioEl.src = unwrapped;
+        audioEl.playbackRate = state.audioRate || 1.0;
+        audioEl.volume = 1.0;
+        return;
+      }
+    }
+
+    if (!currentSrc.startsWith("blob:")) {
+      state.audioSourceKind = "synthesized";
+      audioEl.src = getOrCreateClientWavUrl(rec, ev);
+      audioEl.playbackRate = state.audioRate || 1.0;
+      audioEl.volume = 1.0;
+    }
+  });
+
+  audioEl?.addEventListener("play", () => {
+    audioEl.muted = false;
+    if (audioEl.volume < 0.2) audioEl.volume = 1.0;
+    updateAudioPlayButtonIcon(true);
+    speakTranscriptTurnIfNeeded(audioEl.currentTime || 0);
+  });
+
+  audioEl?.addEventListener("pause", () => {
+    updateAudioPlayButtonIcon(false);
+    stopSpeechSynthesis();
+  });
+
+  audioEl?.addEventListener("ended", () => {
+    updateAudioPlayButtonIcon(false);
+    stopSpeechSynthesis();
+    if (seekSlider) {
+      seekSlider.value = "0";
+      seekSlider.style.setProperty("--progress", "0%");
+    }
+  });
+
+  const syncAudioDurationLabel = () => {
+    if (!audioEl) return;
+    if (state.pendingAudioSeekSec !== null && audioEl.readyState >= 1) {
+      const targetSec = state.pendingAudioSeekSec;
+      state.pendingAudioSeekSec = null;
+      try {
+        audioEl.currentTime = Math.min(targetSec, Math.max(0, (audioEl.duration || targetSec) - 0.1));
+      } catch (_e) {}
+    }
+    const rec = state.records.find((r) => r.conversation_id === state.activeId);
+    const ev = rec ? state.evaluations[rec.conversation_id] : null;
+    const totalSec = getActiveTotalDurationSeconds(rec, ev);
+    const curSec = audioEl.currentTime || 0;
+    if (timeLabel && !seekSlider?.classList.contains("is-dragging")) {
+      timeLabel.textContent = `${formatMmSs(curSec)} / ${formatMmSs(totalSec)}`;
+    }
+  };
+
+  audioEl?.addEventListener("loadedmetadata", syncAudioDurationLabel);
+  audioEl?.addEventListener("durationchange", syncAudioDurationLabel);
+
+  audioEl?.addEventListener("timeupdate", () => {
+    if (!audioEl || seekSlider?.classList.contains("is-dragging")) return;
+    const rec = state.records.find((r) => r.conversation_id === state.activeId);
+    const ev = rec ? state.evaluations[rec.conversation_id] : null;
+    const totalSec = getActiveTotalDurationSeconds(rec, ev);
+    const curSec = audioEl.currentTime || 0;
+    const pct = totalSec > 0 ? Math.min(100, Math.max(0, (curSec / totalSec) * 100)) : 0;
+    if (seekSlider) {
+      seekSlider.value = String(pct.toFixed(1));
+      seekSlider.style.setProperty("--progress", `${pct.toFixed(1)}%`);
+    }
+    if (timeLabel) {
+      timeLabel.textContent = `${formatMmSs(curSec)} / ${formatMmSs(totalSec)}`;
+    }
+    if (!audioEl.paused) {
+      speakTranscriptTurnIfNeeded(curSec);
+    }
+  });
+
+  ttsBtn?.addEventListener("click", () => {
+    state.audioTtsEnabled = !state.audioTtsEnabled;
+    updateTtsButtonUI();
+    if (!state.audioTtsEnabled) {
+      stopSpeechSynthesis();
+      if (audioEl) {
+        audioEl.volume = 1.0;
+      }
+      showToast("Голосовая озвучка TTS выключена");
+    } else {
+      if (audioEl) {
+        audioEl.volume = 1.0;
+      }
+      if (audioEl && !audioEl.paused) {
+        state.lastSpokenTurnIdx = -1;
+        speakTranscriptTurnIfNeeded(audioEl.currentTime || 0);
+      }
+      showToast("Голосовая озвучка реплик (TTS) включена");
     }
   });
 
@@ -2934,13 +4274,22 @@ function initCqaApp() {
     seekSlider.style.setProperty("--progress", `${pct}%`);
     const rec = state.records.find((r) => r.conversation_id === state.activeId);
     const ev = rec ? state.evaluations[rec.conversation_id] : null;
-    const totalSec = ev?.risk_metrics?.total_duration_seconds || 169;
-    const curSec = Math.round((pct / 100) * totalSec);
+    const totalSec = getActiveTotalDurationSeconds(rec, ev);
+    const curSec = (pct / 100) * totalSec;
     if (timeLabel) {
       timeLabel.textContent = `${formatMmSs(curSec)} / ${formatMmSs(totalSec)}`;
     }
-    if (audioEl && Number.isFinite(audioEl.duration) && audioEl.duration > 0) {
-      audioEl.currentTime = (pct / 100) * audioEl.duration;
+    state.lastSpokenTurnIdx = -1;
+    if (audioEl) {
+      if (audioEl.readyState >= 1) {
+        try {
+          const maxDur =
+            Number.isFinite(audioEl.duration) && audioEl.duration > 0 ? audioEl.duration : totalSec;
+          audioEl.currentTime = (pct / 100) * maxDur;
+        } catch (_err) {}
+      } else {
+        state.pendingAudioSeekSec = curSec;
+      }
     }
   });
 
@@ -2980,6 +4329,65 @@ function initCqaApp() {
   });
   document.getElementById("saveChecklistBtn")?.addEventListener("click", saveAndApplyChecklist);
 
+  // Модалка настройки API ключа и ИИ-модели
+  document.getElementById("openApiKeyModalBtn")?.addEventListener("click", openApiKeyModal);
+  document.getElementById("kpiOpenApiKeyBtn")?.addEventListener("click", openApiKeyModal);
+  document.getElementById("closeApiKeyModalBtn")?.addEventListener("click", closeApiKeyModal);
+  document.getElementById("cancelApiKeyModalBtn")?.addEventListener("click", closeApiKeyModal);
+  document.getElementById("testApiKeyBtn")?.addEventListener("click", testLlmApiKeyConnection);
+  document.getElementById("saveApiKeyBtn")?.addEventListener("click", saveLlmApiKeySettings);
+  document.getElementById("clearApiKeyBtn")?.addEventListener("click", clearSavedLlmApiKey);
+  document.getElementById("cancelLlmJobBtn")?.addEventListener("click", cancelLlmJob);
+
+  const apiKeyInputEl = document.getElementById("llmApiKeyInput");
+  apiKeyInputEl?.addEventListener("input", (e) => {
+    detectProviderFromKeyInput(e.target.value);
+  });
+  apiKeyInputEl?.addEventListener("paste", (e) => {
+    setTimeout(() => detectProviderFromKeyInput(e.target.value), 10);
+  });
+
+  document.getElementById("pasteApiKeyClipboardBtn")?.addEventListener("click", async () => {
+    if (!apiKeyInputEl) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        apiKeyInputEl.value = text.trim();
+        detectProviderFromKeyInput(apiKeyInputEl.value);
+        showToast("API-ключ вставлен из буфера обмена");
+      } else {
+        apiKeyInputEl.focus();
+        showToast("Буфер обмена пуст — нажмите Ctrl+V / Cmd+V в поле");
+      }
+    } catch (_err) {
+      apiKeyInputEl.focus();
+      showToast("Нажмите Ctrl+V (или Cmd+V) для вставки ключа в поле");
+    }
+  });
+
+  document.getElementById("toggleApiKeyVisibilityBtn")?.addEventListener("click", (e) => {
+    if (!apiKeyInputEl) return;
+    const isHidden = apiKeyInputEl.type === "password";
+    apiKeyInputEl.type = isHidden ? "text" : "password";
+    e.currentTarget.textContent = isHidden ? "Скрыть" : "Показать";
+  });
+
+  document.getElementById("llmProviderSelect")?.addEventListener("change", (e) => {
+    const prov = e.target.value;
+    const modelEl = document.getElementById("llmModelInput");
+    const defaults = {
+      gemini: "gemini-flash-latest",
+      openai: "gpt-4o-mini",
+      ollama: "llama3.1:8b",
+      builtin: "gemini-flash-latest"
+    };
+    if (modelEl && defaults[prov]) {
+      modelEl.value = defaults[prov];
+    }
+    updateLlmBaseUrlVisibility();
+    showLlmTestBanner("", "hidden");
+  });
+
   // Клавиатурные шорткаты:
   // - 1 (Поставить «Да» / макс. балл) и 0 (Поставить «Нет» / 0 баллов) для открытого критерия в режиме супервизора
   // - J / K для переключения диалогов, Esc для закрытия модалок и Popover
@@ -2988,6 +4396,7 @@ function initCqaApp() {
     if (e.key === "Escape") {
       closeAppealModal();
       closeChecklistModal();
+      closeApiKeyModal();
       kpiPopover?.classList.add("hidden");
       return;
     }
