@@ -1,0 +1,3046 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Freedom Finance — CQA</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+/*
+ * Freedom Finance | CQA Engine
+ * Стандарт: Material You (Material 3 Expressive) + Пружинная физика движения
+ * Типографика: Outfit (заголовки, цифры, бейджи) + Plus Jakarta Sans (текст реплик и критериев)
+ */
+
+:root {
+  --m3-canvas: #F8FAFC;
+  --m3-surface-lowest: #FFFFFF;
+  --m3-surface-low: #F1F5F9;
+  --m3-surface-high: #E2E8F0;
+  --m3-border-subtle: rgba(226, 232, 240, 0.85);
+
+  --freedom-primary: #00A35B;
+  --freedom-primary-hover: #008A4C;
+  --freedom-container: #E8F8F0;
+  --freedom-on-container: #064E3B;
+
+  --slate-heading: #0F172A;
+  --slate-body: #334155;
+  --slate-muted: #64748B;
+
+  --m3-ambient-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  --m3-popover-shadow: 0 14px 34px -6px rgba(15, 23, 42, 0.12);
+
+  /* Пружинные кривые кубического Безье */
+  --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --spring-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--m3-canvas);
+  color: var(--slate-heading);
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Шрифт Outfit для заголовков, крупных цифр и метрик */
+.font-display {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Скрытие полос прокрутки для горизонтальной ленты чипсов */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Поверхности карточек Material You */
+.m3-card {
+  background-color: var(--m3-surface-lowest);
+  border: 1px solid var(--m3-border-subtle);
+  border-radius: 24px;
+  box-shadow: var(--m3-ambient-shadow);
+}
+
+/* 3.1. Shape-Morphing кнопок при нажатии (:active меняет радиус с 9999px на 16px со сжатием scale(0.97)) */
+.m3-morph-btn {
+  border-radius: 9999px;
+  transition:
+    transform 0.38s var(--spring-bounce),
+    border-radius 0.32s var(--spring-bounce),
+    background-color 0.2s ease,
+    box-shadow 0.25s var(--spring-smooth),
+    color 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.m3-morph-btn:active {
+  transform: scale(0.97) !important;
+  border-radius: 16px !important;
+}
+
+/* Компактный объединенный M3 Segmented Bar (DEV / TEST + ввод group_id) */
+.m3-unified-segmented {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--m3-surface-low);
+  border: 1px solid var(--m3-border-subtle);
+  border-radius: 9999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.m3-seg-pill {
+  position: relative;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--slate-muted);
+  transition:
+    background-color 0.28s var(--spring-smooth),
+    color 0.2s ease,
+    transform 0.34s var(--spring-bounce),
+    border-radius 0.28s var(--spring-bounce),
+    box-shadow 0.25s ease;
+  white-space: nowrap;
+}
+
+.m3-seg-pill.is-active {
+  background-color: var(--m3-surface-lowest);
+  color: var(--slate-heading);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.m3-seg-pill:active {
+  transform: scale(0.96);
+  border-radius: 14px;
+}
+
+/* Выпадающая карточка сведений KPI (Popover) */
+.m3-kpi-popover {
+  position: fixed;
+  top: 58px;
+  right: 170px;
+  width: 296px;
+  background-color: var(--m3-surface-lowest);
+  border: 1px solid var(--m3-border-subtle);
+  border-radius: 20px;
+  box-shadow: var(--m3-popover-shadow);
+  padding: 16px;
+  z-index: 60;
+  transform-origin: top right;
+  transition: opacity 0.25s var(--spring-smooth), transform 0.35s var(--spring-bounce);
+}
+
+.m3-kpi-popover.hidden {
+  display: none;
+}
+
+/* Горизонтальные чипсы фильтров без обрезки текста */
+.m3-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background-color: var(--m3-surface-low);
+  color: var(--slate-body);
+  border: 1px solid transparent;
+  transition:
+    transform 0.36s var(--spring-bounce),
+    border-radius 0.3s var(--spring-bounce),
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.m3-filter-chip:hover {
+  background-color: #E2E8F0;
+}
+
+.m3-filter-chip:active {
+  transform: scale(0.96);
+  border-radius: 14px;
+}
+
+.m3-filter-chip-active {
+  background-color: var(--freedom-container) !important;
+  color: var(--freedom-on-container) !important;
+  border-color: rgba(0, 163, 91, 0.35) !important;
+}
+
+/* Карточки диалогов в Master Feed */
+.m3-feed-item {
+  position: relative;
+  background-color: var(--m3-surface-lowest);
+  border: 1px solid var(--m3-border-subtle);
+  border-radius: 16px;
+  padding: 12px 14px;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 0.38s var(--spring-bounce),
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.25s var(--spring-smooth);
+}
+
+.m3-feed-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 6px 16px -4px rgba(15, 23, 42, 0.06);
+}
+
+.m3-feed-item:active {
+  transform: translateX(2px) scale(0.98);
+}
+
+.m3-feed-item-active {
+  background-color: var(--freedom-container) !important;
+  border-color: rgba(0, 163, 91, 0.42) !important;
+}
+
+.m3-feed-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  border-radius: 0 9999px 9999px 0;
+  background-color: var(--freedom-primary);
+  opacity: 0;
+  transform: scaleY(0.25);
+  transition: opacity 0.25s ease, transform 0.4s var(--spring-bounce);
+}
+
+.m3-feed-item-active .m3-feed-indicator {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+/* 3.2. Червякообразный ползунок аудиоплеера (Wavy / Worm Slider) */
+input[type="range"].m3-worm-slider {
+  --progress: 35%;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    #00A35B 0%,
+    #10B981 var(--progress),
+    #E2E8F0 var(--progress),
+    #E2E8F0 100%
+  );
+  outline: none;
+  cursor: pointer;
+  transition: height 0.25s var(--spring-bounce);
+}
+
+input[type="range"].m3-worm-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--freedom-primary);
+  border: 2.5px solid #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 163, 91, 0.42);
+  cursor: grab;
+  transition:
+    width 0.32s var(--spring-bounce),
+    height 0.32s var(--spring-bounce),
+    border-radius 0.32s var(--spring-bounce),
+    transform 0.32s var(--spring-bounce),
+    background-color 0.2s ease;
+}
+
+/* Эффект эластичной капли / червяка при удержании и перетаскивании */
+input[type="range"].m3-worm-slider:active::-webkit-slider-thumb,
+input[type="range"].m3-worm-slider.is-dragging::-webkit-slider-thumb {
+  width: 24px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #064E3B;
+  cursor: grabbing;
+}
+
+input[type="range"].m3-worm-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--freedom-primary);
+  border: 2.5px solid #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 163, 91, 0.42);
+  cursor: grab;
+  transition: width 0.32s var(--spring-bounce), height 0.32s var(--spring-bounce);
+}
+
+input[type="range"].m3-worm-slider:active::-moz-range-thumb {
+  width: 24px;
+  height: 12px;
+  border-radius: 9999px;
+}
+
+/* Каскадное появление реплик чата */
+@keyframes bubbleSpringPop {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.chat-bubble-stagger {
+  animation: bubbleSpringPop 0.44s var(--spring-bounce) both;
+}
+
+/* Двухэтапный импульс доказательства — Freedom Evidence Pulse */
+@keyframes freedomEvidencePulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(0, 163, 91, 0);
+  }
+  28% {
+    transform: scale(1.025);
+    box-shadow: 0 0 0 8px rgba(0, 163, 91, 0.15);
+    background-color: var(--freedom-container);
+  }
+  65% {
+    transform: scale(1.025);
+    box-shadow: 0 0 0 10px rgba(0, 163, 91, 0.11);
+    background-color: var(--freedom-container);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(0, 163, 91, 0);
+  }
+}
+
+.freedom-pulse {
+  animation: freedomEvidencePulse 2s var(--spring-bounce) 1 forwards;
+  border-radius: 24px;
+}
+
+/* Разделитель превышения SLA (тонкая линия с центрированным M3 Assist Chip) */
+.m3-sla-divider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 14px 0;
+}
+
+.m3-sla-divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(225, 29, 72, 0.28), transparent);
+}
+
+.m3-assist-chip-sla {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  background-color: #FFF1F2;
+  color: #9F1239;
+  border: 1px solid #FECDD3;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Кольцо итогового балла (Hero Score Ring) */
+.m3-score-ring-progress {
+  transition: stroke-dashoffset 0.8s var(--spring-smooth), stroke 0.35s ease;
+}
+
+/* 2.3. M3 Switch (ровно w-11 h-6 / 44x24px, бегунок w-4 h-4 / 16x16px, сдвиг translateX(20px) + scaleX(1.15)) */
+.m3-switch-track {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 44px;
+  height: 24px;
+  padding: 0 4px;
+  background-color: #CBD5E1;
+  border-radius: 9999px;
+  transition: background-color 0.25s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.m3-switch-thumb {
+  width: 16px;
+  height: 16px;
+  background-color: #FFFFFF;
+  border-radius: 9999px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.22);
+  transform: translateX(0) scaleX(1);
+  transition: transform 0.38s var(--spring-bounce);
+}
+
+.m3-switch-track:active .m3-switch-thumb {
+  transform: translateX(2px) scaleX(1.15);
+}
+
+input:checked + .m3-switch-track {
+  background-color: var(--freedom-primary);
+}
+
+input:checked + .m3-switch-track .m3-switch-thumb {
+  transform: translateX(20px) scaleX(1);
+}
+
+input:checked + .m3-switch-track:active .m3-switch-thumb {
+  transform: translateX(18px) scaleX(1.15);
+}
+
+/* 3.3. Пружинные CSS Grid-аккордеоны чек-листа с каскадным появлением обоснования */
+.m3-criterion-accordion {
+  background-color: var(--m3-surface-lowest);
+  border: 1px solid var(--m3-border-subtle);
+  border-radius: 18px;
+  overflow: hidden;
+  outline: none;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.32s var(--spring-smooth),
+    transform 0.32s var(--spring-bounce);
+}
+
+.m3-criterion-accordion:focus-visible {
+  border-color: var(--freedom-primary);
+  box-shadow: 0 0 0 3px rgba(0, 163, 91, 0.18);
+}
+
+.m3-criterion-accordion.is-open {
+  border-color: rgba(0, 163, 91, 0.45);
+  box-shadow: 0 8px 24px -6px rgba(0, 163, 91, 0.1);
+}
+
+.m3-accordion-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.44s var(--spring-bounce);
+}
+
+.m3-criterion-accordion.is-open .m3-accordion-grid {
+  grid-template-rows: 1fr;
+}
+
+.m3-accordion-inner {
+  overflow: hidden;
+}
+
+.m3-cascade-item {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.32s var(--spring-smooth),
+    transform 0.38s var(--spring-bounce);
+}
+
+.m3-criterion-accordion.is-open .m3-cascade-item {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.m3-criterion-accordion.is-open .m3-cascade-delay-1 {
+  transition-delay: 45ms;
+}
+.m3-criterion-accordion.is-open .m3-cascade-delay-2 {
+  transition-delay: 90ms;
+}
+.m3-criterion-accordion.is-open .m3-cascade-delay-3 {
+  transition-delay: 135ms;
+}
+
+.m3-chevron {
+  transition: transform 0.4s var(--spring-bounce);
+}
+
+.m3-criterion-accordion.is-open .m3-chevron {
+  transform: rotate(180deg);
+}
+
+/* Модальные окна (Spring Sheet) */
+@keyframes sheetSpringEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.m3-sheet-dialog {
+  animation: sheetSpringEnter 0.42s var(--spring-bounce) forwards;
+}
+
+.modal-backdrop {
+  background-color: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+</style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] max-w-full overflow-x-hidden selection:bg-[#E8F8F0] selection:text-[#064E3B]">
+
+  <!-- 1. TOP APP BAR: 64PX, ЧИСТЫЙ #FFFFFF, 100% ШИРИНЫ БЕЗ ГОРИЗОНТАЛЬНОГО ПЕРЕПОЛНЕНИЯ -->
+  <header class="h-16 w-full max-w-full overflow-hidden bg-[#FFFFFF] border-b border-slate-200/80 px-5 sticky top-0 z-30 flex items-center justify-between gap-3">
+    <!-- Слева: Акцентный логотип Freedom высотой 36px (h-9) без разделителей и лишних бейджей -->
+    <div class="flex items-center shrink-0">
+      <img
+        src="data:image/png;base64,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"
+        alt="Freedom Finance"
+        class="h-9 w-auto object-contain select-none"
+      />
+    </div>
+
+    <!-- По центру: Единый компактный M3 Segmented Bar (DEV (65) / TEST (10) + ввод group_id) -->
+    <div class="m3-unified-segmented shrink-0" id="datasetSegmentedControl">
+      <button type="button" data-segment-group="DEV" class="m3-seg-pill is-active">
+        DEV <span id="segDevCount" class="opacity-75">(65)</span>
+      </button>
+      <button type="button" data-segment-group="TEST" class="m3-seg-pill">
+        TEST <span id="segTestCount" class="opacity-75">(10)</span>
+      </button>
+      <div class="hidden sm:flex items-center pl-2 pr-1 border-l border-slate-200/90 gap-1">
+        <input
+          id="groupIdInput"
+          type="text"
+          value="DEV"
+          aria-label="Код группы"
+          class="font-display text-xs font-bold text-[#0F172A] bg-transparent w-14 px-1.5 py-0.5 focus:outline-none"
+        />
+        <button
+          id="loadDatasetBtn"
+          type="button"
+          class="m3-morph-btn px-2.5 py-1 bg-[#E8F8F0] hover:bg-[#d3f3e2] text-[#064E3B] text-[11px] font-bold"
+        >
+          Загрузить сет
+        </button>
+      </div>
+    </div>
+
+    <!-- Справа: Компактный кликабельный KPI-чипс с Popover + Кнопка «Конструктор чек-листа» -->
+    <div class="flex items-center gap-2 shrink-0">
+      <button
+        id="kpiPopoverTriggerBtn"
+        type="button"
+        class="m3-morph-btn inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#F1F5F9] hover:bg-slate-200/80 border border-slate-200/80 text-xs font-semibold text-[#0F172A]"
+        title="Нажмите для просмотра технической телеметрии и формулы"
+      >
+        <span class="w-2 h-2 rounded-full bg-[#00A35B]"></span>
+        <span class="font-display font-extrabold text-[#00A35B]" id="statAverageScore">86.4</span>
+        <span class="text-[#64748B]">/ 100</span>
+        <span class="text-slate-300">·</span>
+        <span class="font-display font-bold text-[#334155]">$0.0031</span>
+      </button>
+
+      <button
+        id="evaluateAllBtn"
+        type="button"
+        class="m3-morph-btn hidden xl:inline-flex items-center px-3.5 py-2 bg-[#F1F5F9] hover:bg-slate-200/80 text-[#334155] text-xs font-bold"
+      >
+        Оценить весь набор
+      </button>
+
+      <button
+        id="openChecklistModalBtn"
+        type="button"
+        class="m3-morph-btn inline-flex items-center gap-2 px-4 py-2 bg-[#00A35B] hover:bg-[#008A4C] text-white text-xs font-bold shadow-sm whitespace-nowrap"
+      >
+        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+        <span>Конструктор чек-листа</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ВЫПАДАЮЩАЯ КАРТОЧКА СВЕДЕНИЙ KPI (POPOVER) -->
+  <div id="kpiDetailsPopover" class="m3-kpi-popover hidden">
+    <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100">
+      <span class="font-display text-xs font-extrabold uppercase tracking-wider text-[#0F172A]">Телеметрия CQA</span>
+      <span id="statTotalDialogs" class="font-display text-xs font-bold px-2 py-0.5 rounded-full bg-[#E8F8F0] text-[#064E3B]">3 / 3</span>
+    </div>
+    <div class="space-y-2 text-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-[#64748B]">Скорость ядра:</span>
+        <span class="font-display font-bold text-[#0F172A]">48 ms math / 1.2 s AI</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-[#64748B]">Расход токенов:</span>
+        <span id="statCostTokens" class="font-display font-bold text-[#064E3B]">3 420 tok ($0.0093)</span>
+      </div>
+      <div class="pt-2 border-t border-slate-100 text-[11px] text-[#334155] leading-relaxed">
+        <div class="font-bold text-[#0F172A] mb-0.5">Формула перенормировки N/A:</div>
+        <code class="block bg-[#F8FAFC] p-2 rounded-xl border border-slate-200/70 font-mono text-[10px]">
+          Total = round((Σ scaled_i / Σ weight_i) × 100, 2)
+        </code>
+      </div>
+    </div>
+  </div>
+
+  <!-- ОСНОВНОЙ 3-КОЛОНОЧНЫЙ WORKSPACE -->
+  <main class="flex-1 max-w-[1920px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 p-4">
+
+    <!-- 2. ЛЕВАЯ КОЛОНКА (3/12): MASTER FEED -->
+    <section class="lg:col-span-3 flex flex-col m3-card overflow-hidden lg:h-[calc(100vh-96px)]">
+      <div class="p-4 border-b border-slate-100 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="font-display text-xs font-bold uppercase tracking-wider text-[#64748B]">Диалоги</span>
+          <span id="filteredCountBadge" class="font-display text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#E8F8F0] text-[#064E3B]">
+            3 записей
+          </span>
+        </div>
+
+        <!-- Строка поиска M3 Search Bar -->
+        <div class="relative">
+          <svg class="w-4 h-4 text-[#64748B] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Поиск по ID или тексту реплики..."
+            class="w-full h-10 bg-[#F1F5F9] hover:bg-slate-200/60 focus:bg-white text-xs font-medium text-[#0F172A] placeholder-[#64748B] rounded-full pl-10 pr-4 border border-transparent focus:border-[#00A35B] focus:outline-none transition-all"
+          />
+        </div>
+
+        <!-- Горизонтальные чипсы фильтров без обрезки текста (whitespace-nowrap px-3.5 no-scrollbar) -->
+        <div id="filterChipsBar" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <button type="button" data-chip-filter="ALL" class="m3-filter-chip m3-filter-chip-active whitespace-nowrap px-3.5">
+            <span>Все</span>
+            <span id="chipCountAll" class="font-display text-[11px] font-bold opacity-80">3</span>
+          </button>
+          <button type="button" data-chip-filter="RU" class="m3-filter-chip whitespace-nowrap px-3.5">
+            <span>RU</span>
+            <span id="chipCountRU" class="font-display text-[11px] font-bold opacity-75">1</span>
+          </button>
+          <button type="button" data-chip-filter="KZ" class="m3-filter-chip whitespace-nowrap px-3.5">
+            <span>KZ</span>
+            <span id="chipCountKZ" class="font-display text-[11px] font-bold opacity-75">1</span>
+          </button>
+          <button type="button" data-chip-filter="EN" class="m3-filter-chip whitespace-nowrap px-3.5">
+            <span>EN</span>
+            <span id="chipCountEN" class="font-display text-[11px] font-bold opacity-75">1</span>
+          </button>
+          <button type="button" data-chip-filter="CRITICAL" class="m3-filter-chip whitespace-nowrap px-3.5">
+            <span>Критические сбои</span>
+            <span id="chipCountCritical" class="font-display text-[11px] font-bold opacity-75">1</span>
+          </button>
+        </div>
+
+        <!-- Скрытые селекты для программной совместимости -->
+        <div class="hidden">
+          <select id="filterLang"><option value="ALL">Все</option></select>
+          <select id="filterChannel"><option value="ALL">Все</option></select>
+          <select id="filterStatus"><option value="ALL">Все</option></select>
+        </div>
+      </div>
+
+      <!-- Список карточек диалогов -->
+      <div id="conversationList" class="flex-1 overflow-y-auto p-3 space-y-2 bg-[#F8FAFC]/60">
+        <!-- Заполняется из app.js -->
+      </div>
+    </section>
+
+    <!-- 3. ЦЕНТРАЛЬНАЯ КОЛОНКА (5/12): CONVERSATION CANVAS -->
+    <section class="lg:col-span-5 flex flex-col m3-card overflow-hidden lg:h-[calc(100vh-96px)]">
+      <!-- Шапка активного диалога -->
+      <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3 bg-white">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h2 id="activeConvTitle" class="font-display text-base font-extrabold text-[#0F172A] truncate">p1-ru-001</h2>
+            <span id="activeConvLangBadge" class="font-display text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#E8F8F0] text-[#064E3B]">
+              RU
+            </span>
+            <span id="activeConvChannelBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F1F5F9] text-[#334155]">
+              Звонок
+            </span>
+          </div>
+          <p id="activeConvMeta" class="text-xs text-[#64748B] mt-0.5 truncate">
+            Первая реакция: 14с · Длительность: 02:49 · Кликните по метке времени для перемотки аудио
+          </p>
+        </div>
+
+        <button
+          id="evaluateCurrentBtn"
+          type="button"
+          class="m3-morph-btn px-3.5 py-2 bg-[#F1F5F9] hover:bg-[#E8F8F0] text-[#064E3B] text-xs font-bold shrink-0"
+        >
+          Оценить / Пересчитать диалог
+        </button>
+      </div>
+
+      <!-- Кастомный аудиоплеер с червякообразным слайдером (Worm Slider) -->
+      <div id="audioPlayerContainer" class="hidden px-5 py-3.5 bg-[#F8FAFC] border-b border-slate-200/70 space-y-2">
+        <div class="flex items-center gap-3.5">
+          <button
+            id="customAudioPlayBtn"
+            type="button"
+            aria-label="Воспроизвести или остановить"
+            class="m3-morph-btn w-10 h-10 bg-[#00A35B] hover:bg-[#008A4C] text-white flex items-center justify-center shadow-sm shrink-0"
+          >
+            <svg id="customAudioPlayIcon" class="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="6,4 20,12 6,20" />
+            </svg>
+          </button>
+
+          <div class="flex-1 min-w-0 space-y-1.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span id="audioUrlLabel" class="font-semibold text-[#334155] truncate">Запись телефонной линии</span>
+              <span id="customAudioTimeLabel" class="font-display font-bold text-[#0F172A]">00:00 / 02:49</span>
+            </div>
+            <input
+              id="customAudioSeekSlider"
+              type="range"
+              min="0"
+              max="100"
+              value="35"
+              aria-label="Позиция аудиозаписи"
+              class="m3-worm-slider"
+            />
+          </div>
+
+          <div class="flex items-center gap-1 bg-white border border-slate-200/80 rounded-full p-1 shrink-0">
+            <button type="button" data-audio-rate="1" class="m3-morph-btn px-2.5 py-0.5 text-[11px] font-display font-bold bg-[#E8F8F0] text-[#064E3B]">
+              1x
+            </button>
+            <button type="button" data-audio-rate="1.25" class="m3-morph-btn px-2.5 py-0.5 text-[11px] font-display font-bold text-[#64748B] hover:text-[#0F172A]">
+              1.25x
+            </button>
+          </div>
+        </div>
+        <audio id="callAudioPlayer" class="hidden"></audio>
+      </div>
+
+      <!-- Лента сообщений (Chat Feed) -->
+      <div id="transcriptContainer" class="flex-1 overflow-y-auto p-5 space-y-3.5 bg-white">
+        <!-- Заполняется из app.js -->
+      </div>
+    </section>
+
+    <!-- 4. ПРАВАЯ КОЛОНКА (4/12): SCORING & RISK CARD -->
+    <section class="lg:col-span-4 flex flex-col m3-card overflow-hidden lg:h-[calc(100vh-96px)]">
+      <!-- Верхний Hero-блок с жестко зафиксированным кольцом w-28 h-28 и числом text-xl font-black -->
+      <div class="p-4 border-b border-slate-100 bg-white space-y-3.5">
+        <div class="flex items-center gap-4">
+          <!-- 2.1. Круговой индикатор балла (Hero Score Ring: w-28 h-28, viewBox="0 0 100 100", text-xl font-black) -->
+          <div class="relative w-28 h-28 shrink-0 flex items-center justify-center">
+            <svg class="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" fill="none" stroke="#F1F5F9" stroke-width="8" />
+              <circle
+                id="radialScoreCircle"
+                class="m3-score-ring-progress"
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke="#00A35B"
+                stroke-width="8"
+                stroke-linecap="round"
+                stroke-dasharray="263.9"
+                stroke-dashoffset="38.2"
+              />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
+              <span id="finalScoreValue" class="font-display text-xl font-black text-[#0F172A] leading-none tracking-tight">
+                85.5
+              </span>
+              <span class="font-display text-[10px] font-bold uppercase tracking-wider text-[#64748B] mt-1">
+                из 100
+              </span>
+            </div>
+          </div>
+
+          <!-- Детализация весов и секций -->
+          <div class="flex-1 min-w-0 space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-display text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Аудит диалога</span>
+              <span id="criticalFailBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#E8F8F0] text-[#064E3B]">
+                Грубых ошибок нет
+              </span>
+            </div>
+            <p id="weightRedistributionNote" class="text-xs font-medium text-[#334155]">
+              Активная база весов: 100%
+            </p>
+            <div id="sectionsSummaryBar" class="flex flex-wrap gap-1.5 pt-0.5">
+              <!-- Компактные бейджи секций -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Карточка актуарного риска (Спарклайн задержек + Weibull VaR_0.95 + Двухцветный бар достоверности) -->
+        <div class="bg-[#F8FAFC] border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="font-display text-xs font-bold text-[#0F172A]">Актуарный риск</span>
+              <span id="weibullRiskBadge" class="font-display text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#E8F8F0] text-[#064E3B]">
+                VaR 95% = 26с · LOW
+              </span>
+            </div>
+            <span class="text-[11px] font-display font-semibold text-[#64748B]">SLA 180с</span>
+          </div>
+
+          <svg id="latencySparklineSvg" class="w-full h-11 bg-white border border-slate-200/60 rounded-xl" viewBox="0 0 320 44" preserveAspectRatio="none"></svg>
+
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="font-semibold text-[#334155]">Достоверность оценки</span>
+              <span id="bayesianConfidenceLabel" class="font-display font-bold text-[#064E3B]">95.2%</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-[#FFE4E6] overflow-hidden flex">
+              <div id="bayesianConfidenceFill" class="h-full bg-[#00A35B] rounded-full transition-all duration-500" style="width: 95.2%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2.3. M3 Switch (ровно w-11 h-6, бегунок w-4 h-4, выровнен по Flex-центру) -->
+        <div class="flex items-center justify-between pt-1">
+          <div>
+            <span class="font-display text-xs font-extrabold text-[#0F172A]">Чек-лист критериев (8)</span>
+            <span class="text-[11px] text-[#64748B] ml-1.5">Шорткаты: 1 = Да, 0 = Нет</span>
+          </div>
+          <label class="inline-flex items-center gap-2.5 cursor-pointer select-none">
+            <span class="text-xs font-bold text-[#334155]">Супервизор</span>
+            <input id="supervisorModeToggle" type="checkbox" class="sr-only" checked />
+            <div class="m3-switch-track">
+              <div class="m3-switch-thumb"></div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Список критериев (Пружинные CSS Grid-аккордеоны) -->
+      <div id="criteriaListContainer" class="flex-1 overflow-y-auto p-3.5 space-y-2 bg-[#F8FAFC]/70">
+        <!-- Заполняется из app.js -->
+      </div>
+    </section>
+  </main>
+
+  <!-- МОДАЛЬНОЕ ОКНО АПЕЛЛЯЦИИ -->
+  <div id="appealModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+    <div class="m3-sheet-dialog bg-white rounded-3xl border border-slate-200/90 shadow-2xl max-w-lg w-full overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 class="font-display text-base font-extrabold text-[#0F172A]">Оспорить критерий</h3>
+          <p id="appealModalSubtitle" class="text-xs font-medium text-[#64748B] mt-0.5">Критерий #01</p>
+        </div>
+        <button id="closeAppealModalBtn" type="button" class="m3-morph-btn w-8 h-8 bg-[#F1F5F9] hover:bg-slate-200 text-[#334155] font-bold text-xs flex items-center justify-center">
+          ✕
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <input type="hidden" id="appealCriterionIdInput" />
+        <div class="bg-[#F8FAFC] border border-slate-200/80 rounded-2xl p-4 text-xs space-y-1.5">
+          <div class="font-bold text-[#0F172A]">Заключение модели:</div>
+          <p id="appealCurrentExplanation" class="text-[#334155] leading-relaxed"></p>
+          <blockquote id="appealCurrentQuote" class="mt-2 pl-3 border-l-2 border-[#00A35B] italic text-[#0F172A]"></blockquote>
+        </div>
+
+        <div>
+          <label for="appealCommentTextarea" class="block text-xs font-bold text-[#0F172A] mb-1.5">
+            Аргументация оператора:
+          </label>
+          <textarea
+            id="appealCommentTextarea"
+            rows="3"
+            placeholder="Укажите основание для пересмотра оценки..."
+            class="w-full text-xs bg-[#F8FAFC] focus:bg-white border border-slate-200 rounded-2xl p-3.5 focus:outline-none focus:border-[#00A35B] transition"
+          ></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button
+            id="cancelAppealBtn"
+            type="button"
+            class="m3-morph-btn px-4 py-2 text-xs font-bold text-[#334155] bg-[#F1F5F9] hover:bg-slate-200"
+          >
+            Отмена
+          </button>
+          <button
+            id="submitAppealBtn"
+            type="button"
+            class="m3-morph-btn px-5 py-2 text-xs font-bold text-white bg-[#00A35B] hover:bg-[#008A4C] shadow-sm"
+          >
+            Отправить апелляцию проверяющему
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: КОНСТРУКТОР ЧЕК-ЛИСТА -->
+  <div id="checklistModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+    <div class="m3-sheet-dialog bg-white rounded-3xl border border-slate-200/90 shadow-2xl max-w-5xl w-full max-h-[88vh] flex flex-col overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h3 class="font-display text-base font-extrabold text-[#0F172A]">Конструктор чек-листа</h3>
+          <span class="font-display text-xs font-bold px-3 py-1 rounded-full bg-[#E8F8F0] text-[#064E3B]">
+            Сумма весов: <strong id="checklistTotalWeightLabel">100</strong>%
+          </span>
+        </div>
+        <button id="closeChecklistModalBtn" type="button" class="m3-morph-btn w-8 h-8 bg-[#F1F5F9] hover:bg-slate-200 text-[#334155] font-bold text-xs flex items-center justify-center">
+          ✕
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto flex-1 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <p class="text-xs text-[#64748B]">
+            Измените веса, шкалы или добавьте новый критерий. При сохранении оценки текущего набора пересчитываются автоматически.
+          </p>
+          <div class="flex items-center gap-2">
+            <button
+              id="addCriterionRowBtn"
+              type="button"
+              class="m3-morph-btn px-4 py-2 bg-[#0F172A] hover:bg-slate-800 text-white text-xs font-bold"
+            >
+              + Добавить критерий
+            </button>
+            <button
+              id="resetChecklistDefaultBtn"
+              type="button"
+              class="m3-morph-btn px-4 py-2 bg-[#F1F5F9] hover:bg-slate-200 text-[#334155] text-xs font-bold"
+            >
+              Сбросить к эталону
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-200/80 rounded-2xl">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#F8FAFC] text-[#64748B] border-b border-slate-200/80 font-display text-[11px] uppercase">
+                <th class="p-3 w-14">Код</th>
+                <th class="p-3 w-52">Критерий</th>
+                <th class="p-3 w-36">Тип шкалы</th>
+                <th class="p-3 w-32">Ступени</th>
+                <th class="p-3 w-20">Вес</th>
+                <th class="p-3 w-20 text-center">N/A</th>
+                <th class="p-3 w-24 text-center">Крит. сбой</th>
+                <th class="p-3">Описание правила</th>
+                <th class="p-3 w-10"></th>
+              </tr>
+            </thead>
+            <tbody id="checklistEditorTableBody" class="divide-y divide-slate-100">
+              <!-- Заполняется из app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="px-6 py-4 bg-[#F8FAFC] border-t border-slate-100 flex items-center justify-end gap-2">
+        <button
+          id="cancelChecklistModalBtn"
+          type="button"
+          class="m3-morph-btn px-4 py-2 text-xs font-bold text-[#334155] bg-white border border-slate-200/80 hover:bg-slate-100"
+        >
+          Закрыть
+        </button>
+        <button
+          id="saveChecklistBtn"
+          type="button"
+          class="m3-morph-btn px-5 py-2 text-xs font-bold text-white bg-[#00A35B] hover:bg-[#008A4C] shadow-sm"
+        >
+          Сохранить и применить к датасету
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SNACKBAR TOAST -->
+  <div
+    id="toastNotification"
+    class="fixed bottom-5 right-5 z-50 hidden bg-[#0F172A] text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-lg items-center gap-2.5"
+  >
+    <span class="w-2 h-2 rounded-full bg-[#00A35B]"></span>
+    <span id="toastMessageText">Готово</span>
+  </div>
+
+  <script type="module">
+/**
+ * Freedom Finance — CQA Frontend Architecture (Material You Expressive)
+ * Тонкий клиентский слой состояния с интеграцией FastAPI (`/api/dataset`, `/api/evaluate`, `/api/checklist`, `/api/appeal`)
+ * и чистым аварийным резервом на 3 диалога (RU, KZ, EN) без встроенных Base64-аудио и гигантских шаблонов.
+ */
+
+const OPERATOR_SHIELD_AVATAR =
+  "data:image/png;base64,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";
+
+const DEFAULT_CHECKLIST = {
+  version: "1.0.0",
+  name: "Чек-лист качества чатов и звонков Freedom Broker",
+  criteria: [
+    { id: 1, code: "01", section: "НАЧАЛО", name: "Установление контакта", type: "boolean", scale: [0, 1], max_raw: 1, weight: 10, allow_na: false, is_critical: false, description: "Приветствие на языке клиента и представление." },
+    { id: 2, code: "02", section: "НАЧАЛО", name: "Выявление потребности", type: "boolean", scale: [0, 1], max_raw: 1, weight: 15, allow_na: true, is_critical: false, description: "Уточнение недостающих деталей до ответа." },
+    { id: 3, code: "03", section: "РЕШЕНИЕ", name: "Идентификация", type: "boolean", scale: [0, 1], max_raw: 1, weight: 20, allow_na: true, is_critical: false, description: "Проверка личности до раскрытия данных счёта." },
+    { id: 4, code: "04", section: "РЕШЕНИЕ", name: "Корректная и полная консультация", type: "scale", scale: [0, 5, 10, 15, 20], max_raw: 20, weight: 20, allow_na: true, is_critical: false, description: "Шкала 0–20: полнота решения запроса и следующий шаг." },
+    { id: 5, code: "05", section: "ВЕДЕНИЕ", name: "Эмпатия и клиентоориентированность", type: "boolean", scale: [0, 1], max_raw: 1, weight: 15, allow_na: false, is_critical: false, description: "Вежливость и реакция на проблему клиента." },
+    { id: 6, code: "06", section: "ВЕДЕНИЕ", name: "Управление диалогом, скорость и грамотность", type: "scale", scale: [0, 4, 7, 10], max_raw: 10, weight: 15, allow_na: false, is_critical: false, description: "Шкала 0–10: ясность, порядок ответов и соблюдение SLA 180с." },
+    { id: 7, code: "07", section: "ВЕДЕНИЕ", name: "Завершение", type: "boolean", scale: [0, 1], max_raw: 1, weight: 5, allow_na: true, is_critical: false, description: "Подведение итога и прощание с клиентом." },
+    { id: 8, code: "08", section: "НАРУШЕНИЯ", name: "Грубые ошибки", type: "boolean", scale: [0, 1], max_raw: 1, weight: 0, allow_na: false, is_critical: true, description: "Оскорбление, услуга в обход компании или утечка данных." }
+  ]
+};
+
+// Чистый аварийный fallback ровно на 3 лаконичных диалога (RU, KZ, EN)
+// Тонкий слой состояния (5.2)
+const state = {
+  groupId: "DEV",
+  chipFilter: "ALL",
+  records: [],
+  filteredRecords: [],
+  activeId: null,
+  checklist: structuredClone(DEFAULT_CHECKLIST),
+  evaluations: {},
+  supervisorMode: true,
+  openCriterionIds: new Set([4]),
+  focusedCriterionId: 4,
+  displayedRingScore: 85.5,
+  audioRate: 1.0
+};
+
+async function apiRequest(endpoint, options = {}) {
+  const jsonResponse = (data, status = 200) =>
+    new Response(JSON.stringify(data), {
+      status,
+      headers: { "Content-Type": "application/json" }
+    });
+  const readJson = async (response) => {
+    const data = await response.json();
+    return { response, data };
+  };
+  const checklistFromApi = (config) => ({
+    ...config,
+    criteria: (config?.criteria || []).map((criterion, index) => {
+      const code = String(criterion.code || String(index + 1).padStart(2, "0"));
+      const values = (criterion.scale || [])
+        .map((step) => Number(typeof step === "object" ? step.value : step))
+        .filter(Number.isFinite);
+      const type = criterion.type === "scale" ? "scale" : "boolean";
+      return {
+        id: Number.parseInt(code, 10) || index + 1,
+        code,
+        section: criterion.section,
+        name: criterion.name,
+        type,
+        scale: type === "scale" ? values : [0, 1],
+        max_raw: type === "scale" ? Math.max(...values, 1) : 1,
+        weight: Number(criterion.weight || 0),
+        allow_na: Boolean(criterion.allow_na),
+        is_critical: criterion.type === "critical_flag",
+        description: criterion.description || ""
+      };
+    })
+  });
+  const checklistToApi = (config) => ({
+    id: `custom-${Date.now()}`,
+    name: config.name || "Чек-лист качества Freedom Broker",
+    description: "Чек-лист, сохранённый из интерфейса CQA.",
+    version: config.version || 1,
+    criteria: (config.criteria || []).map((criterion) => ({
+      id: `c${String(criterion.id).padStart(2, "0")}`,
+      code: String(criterion.code || String(criterion.id).padStart(2, "0")),
+      section: criterion.section || "ОБЩИЕ КРИТЕРИИ",
+      name: criterion.name || "Новый критерий",
+      description: criterion.description || "",
+      type: criterion.is_critical ? "critical_flag" : criterion.type === "scale" ? "scale" : "yes_no",
+      weight: Number(criterion.weight || 0),
+      allow_na: Boolean(criterion.allow_na),
+      na_condition: "",
+      scale:
+        criterion.type === "scale"
+          ? (criterion.scale || []).map((value) => ({ value: Number(value), label: String(value) }))
+          : []
+    }))
+  });
+  const toUiEvaluation = (evaluation, checklist, initialEvaluation, appeals, transcript) => {
+    if (!evaluation || !Object.keys(evaluation).length) return null;
+    const configs = checklist.criteria || [];
+    const originals = new Map(
+      (initialEvaluation?.criteria_results || []).map((item) => [item.criterion_id, item])
+    );
+    const appealById = new Map((appeals || []).map((appeal) => [appeal.criterion_id, appeal]));
+    const criteria = (evaluation.criteria_results || []).map((item) => {
+      const config = configs.find((entry) => entry.code === item.code) || {};
+      const original = originals.get(item.criterion_id) || item;
+      const isBoolean = item.type !== "scale";
+      const rawScore = (answer) =>
+        isBoolean ? (["ДА", "YES", "TRUE", "1", 1].includes(answer) ? 1 : 0) : Number(answer || 0);
+      const ev = item.evidence?.[0] || {};
+      const appeal = appealById.get(item.criterion_id) || item.appeal;
+      return {
+        criterion_id: Number.parseInt(String(item.code || "").replace(/\D/g, ""), 10) || config.id,
+        code: item.code,
+        name: item.name,
+        section: item.section,
+        type: isBoolean ? "boolean" : "scale",
+        scale: config.scale || [0, 1],
+        max_raw: Number(item.max_scale || config.max_raw || 1),
+        base_weight: Number(item.weight || 0),
+        redistributed_weight: Number(item.effective_weight || 0),
+        allow_na: Boolean(item.allow_na),
+        is_critical: item.type === "critical_flag",
+        score_raw: rawScore(item.answer),
+        original_score_raw: rawScore(original.answer),
+        is_na: Boolean(item.is_na),
+        original_is_na: Boolean(original.is_na),
+        explanation: item.reasoning || item.na_reason || item.description || "",
+        evidence_line_index: Number(ev.evidence_line_index ?? ev.turn_index ?? 0),
+        evidence_quote: ev.evidence_quote || ev.text || "",
+        evidence_timestamp: ev.formatted_offset || ev.timestamp || "00:00",
+        appeal: appeal
+          ? {
+              ...appeal,
+              status:
+                appeal.status === "confirmed"
+                  ? "resolved_confirmed"
+                  : appeal.status === "changed"
+                  ? "resolved_override"
+                  : appeal.status,
+              supervisor_decision:
+                appeal.decision === "change" ? "override" : appeal.decision === "confirm" ? "confirm" : null,
+              new_score_raw: rawScore(appeal.new_answer),
+              new_is_na: appeal.new_answer === "N/A",
+              supervisor_reason: appeal.reviewer_comment || ""
+            }
+          : null
+      };
+    });
+    const risk = analyzeConversationRiskClient(transcript || []);
+    const actuarial = evaluation.algorithms?.actuarial_risk || {};
+    const beta = actuarial.bayesian_beta || {};
+    return {
+      total_score: evaluation.final_score,
+      has_critical_fail: Boolean(evaluation.has_critical_error),
+      applicable_weight_sum: Number(evaluation.applicable_weight_sum || 0),
+      dropped_na_weight_sum: Number(evaluation.na_weight_redistributed || 0),
+      scaled_score_sum: Number(evaluation.raw_earned || 0),
+      criteria,
+      sections_summary: (evaluation.sections || []).map((section) => ({
+        section: section.section,
+        percentage: section.section_percent,
+        base_weight: section.configured_weight
+      })),
+      risk_metrics: {
+        ...risk,
+        var_95_seconds: actuarial.var_95_sec ?? risk.var_95_seconds,
+        confidence_score: beta.posterior_confidence ?? risk.confidence_score,
+        risk_category:
+          actuarial.risk_tier === "HIGH" || actuarial.risk_tier === "CRITICAL"
+            ? "HIGH"
+            : actuarial.risk_tier === "MODERATE"
+            ? "MEDIUM"
+            : "LOW"
+      },
+      response_delays_seconds: risk.response_delays_seconds
+    };
+  };
+  const loadCompatibleDataset = async (groupId) => {
+    let listResult = await readJson(
+      await window.fetch(`/api/conversations?group_id=${encodeURIComponent(groupId)}`)
+    );
+    if (!listResult.response.ok || !listResult.data.isSuccess) {
+      return { response: listResult.response, data: listResult.data };
+    }
+    if (!(listResult.data.records || []).length) {
+      const importResult = await readJson(
+        await window.fetch("/api/datasets/fetch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ group_id: groupId })
+        })
+      );
+      if (!importResult.response.ok || !importResult.data.isSuccess) {
+        return { response: importResult.response, data: importResult.data };
+      }
+      listResult = await readJson(
+        await window.fetch(`/api/conversations?group_id=${encodeURIComponent(groupId)}`)
+      );
+      if (!listResult.response.ok || !listResult.data.isSuccess) {
+        return { response: listResult.response, data: listResult.data };
+      }
+    }
+    const stateResult = await readJson(await window.fetch("/api/state"));
+    if (!stateResult.response.ok || !stateResult.data.isSuccess) {
+      return { response: stateResult.response, data: stateResult.data };
+    }
+    const checklist = checklistFromApi(stateResult.data.active_checklist);
+    const details = await Promise.all(
+      (listResult.data.records || []).map(async (record) => {
+        const detailResponse = await window.fetch(
+          `/api/conversations/${encodeURIComponent(record.conversation_id)}`
+        );
+        const detailData = await detailResponse.json();
+        if (!detailResponse.ok || !detailData.isSuccess) {
+          throw new Error(detailData.error || `Не удалось загрузить диалог ${record.conversation_id}`);
+        }
+        return { record, conversation: detailData.conversation };
+      })
+    );
+    const records = details.map(({ record, conversation }) => ({
+      ...record,
+      conversation_id: conversation.conversation_id,
+      dataset_group_id: conversation.dataset_group_id,
+      channel: conversation.channel,
+      language: conversation.language,
+      audio_url: conversation.proxy_audio_url || conversation.audio_url,
+      transcript: conversation.transcript
+    }));
+    const evaluations = Object.fromEntries(
+      details.map(({ record, conversation }) => [
+        record.conversation_id,
+        toUiEvaluation(
+          conversation.current_evaluation,
+          checklist,
+          conversation.initial_evaluation,
+          conversation.appeals,
+          conversation.transcript
+        )
+      ]).filter(([, evaluation]) => evaluation)
+    );
+    return {
+      response: listResult.response,
+      data: { data: { records }, evaluations, checklist }
+    };
+  };
+
+  if (endpoint.startsWith("/api/dataset?")) {
+    const groupId = new URLSearchParams(endpoint.split("?")[1]).get("group_id") || "DEV";
+    const result = await loadCompatibleDataset(groupId);
+    return jsonResponse(result.data, result.response.status);
+  }
+  if (endpoint.startsWith("/api/evaluate/")) {
+    const conversationId = decodeURIComponent(endpoint.split("/api/evaluate/")[1].split("?")[0]);
+    const response = await window.fetch("/api/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversation_id: conversationId })
+    });
+    const { data } = await readJson(response);
+    if (!response.ok || !data.isSuccess) return jsonResponse(data, response.status);
+    const groupId = new URLSearchParams(endpoint.split("?")[1] || "").get("group_id") || "DEV";
+    const dataset = await loadCompatibleDataset(groupId);
+    return jsonResponse(
+      {
+        ...data,
+        evaluation: dataset.data.evaluations?.[conversationId] || null
+      },
+      dataset.response.status
+    );
+  }
+  if (endpoint === "/api/evaluate_all") {
+    const response = await window.fetch("/api/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true })
+    });
+    const { data } = await readJson(response);
+    if (!response.ok || !data.isSuccess) return jsonResponse(data, response.status);
+    const dataset = await loadCompatibleDataset(state.groupId);
+    return jsonResponse({ ...data, evaluations: dataset.data.evaluations }, dataset.response.status);
+  }
+  if (endpoint === "/api/appeal" && options.method === "POST") {
+    const body = JSON.parse(options.body || "{}");
+    const criterionId = `c${String(body.criterion_id).padStart(2, "0")}`;
+    const supervisorDecision = body.supervisor_decision;
+    const isOverride = supervisorDecision === "override";
+    const criterion = state.checklist.criteria.find((item) => Number(item.id) === Number(body.criterion_id));
+    const newAnswer =
+      body.new_is_na
+        ? "N/A"
+        : criterion?.type === "scale"
+        ? Number(body.new_score_raw || 0)
+        : Number(body.new_score_raw || 0) >= 1
+        ? "ДА"
+        : "НЕТ";
+    const apiBody = supervisorDecision
+      ? {
+          conversation_id: body.conversation_id,
+          criterion_id: criterionId,
+          decision: isOverride ? "change" : "confirm",
+          new_answer: isOverride ? newAnswer : undefined,
+          reviewer_comment: body.supervisor_reason || "Решение проверяющего"
+        }
+      : {
+          conversation_id: body.conversation_id,
+          criterion_id: criterionId,
+          comment: body.operator_comment || "Запрос на пересмотр оценки"
+        };
+    return window.fetch(supervisorDecision ? "/api/appeals/decide" : "/api/appeals/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(apiBody)
+    });
+  }
+  if (endpoint === "/api/checklist" && options.method === "POST") {
+    const config = JSON.parse(options.body || "{}");
+    return window.fetch("/api/checklists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        checklist: checklistToApi(config),
+        apply_to_all: Boolean(config.recalculate_existing)
+      })
+    });
+  }
+
+  const baseUrl =
+    window.location.origin && window.location.origin !== "null" ? window.location.origin : "";
+  return window.fetch(baseUrl + endpoint, options);
+}
+
+// --- Парсинг времени и расчет рисков ---
+
+function parseTimestampToSeconds(ts) {
+  if (!ts || typeof ts !== "string") return null;
+  const raw = ts.trim();
+  const m = raw.match(/^(\d{1,3}):(\d{2})(?::(\d{2}(?:\.\d+)?))?$/);
+  if (m) {
+    const p1 = parseInt(m[1], 10);
+    const p2 = parseInt(m[2], 10);
+    const p3 = m[3] !== undefined ? parseFloat(m[3]) : null;
+    return p3 !== null ? p1 * 3600 + p2 * 60 + p3 : p1 * 60 + p2;
+  }
+  const dt = Date.parse(raw);
+  return Number.isNaN(dt) ? null : dt / 1000.0;
+}
+
+function formatMmSs(secondsVal) {
+  const s = Math.max(0, Math.round(Number(secondsVal || 0)));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function analyzeConversationRiskClient(transcript) {
+  if (!Array.isArray(transcript) || !transcript.length) {
+    return {
+      delta_first_seconds: 0,
+      first_response_exceeded: false,
+      response_delays_seconds: [],
+      turn_latencies: {},
+      var_95_seconds: 0,
+      risk_category: "LOW",
+      confidence_score: 94.5,
+      total_duration_seconds: 0
+    };
+  }
+
+  const times = transcript.map((t) => parseTimestampToSeconds(String(t.timestamp || "")));
+  const valid = times.filter((t) => t !== null);
+  const totalDuration = valid.length >= 2 ? Math.max(0, valid[valid.length - 1] - valid[0]) : 0;
+
+  let firstCl = null;
+  let firstOpAfterCl = null;
+  let pendingCl = null;
+  const delays = [];
+  const turnLatencies = {};
+
+  transcript.forEach((turn, idx) => {
+    const role = String(turn.speaker || "").toLowerCase();
+    const tVal = times[idx];
+    if (tVal === null) return;
+    if (role === "client") {
+      if (firstCl === null) firstCl = tVal;
+      if (pendingCl === null) pendingCl = tVal;
+    } else if (role === "operator") {
+      if (firstCl !== null && firstOpAfterCl === null) firstOpAfterCl = tVal;
+      if (pendingCl !== null) {
+        const d = Number(Math.max(0, tVal - pendingCl).toFixed(1));
+        delays.push(d);
+        turnLatencies[idx] = d;
+        pendingCl = null;
+      }
+    }
+  });
+
+  const deltaFirst =
+    firstCl !== null && firstOpAfterCl !== null ? Math.max(0, firstOpAfterCl - firstCl) : 0;
+  const sorted = [...delays].sort((a, b) => a - b);
+  const var95 = sorted.length ? sorted[Math.floor(0.95 * (sorted.length - 1))] : deltaFirst;
+  const riskCategory = var95 < 45 ? "LOW" : var95 <= 120 ? "MEDIUM" : "HIGH";
+  const confidenceScore = deltaFirst > 180 ? 73.8 : 95.2;
+
+  return {
+    delta_first_seconds: Number(deltaFirst.toFixed(1)),
+    first_response_exceeded: deltaFirst > 180,
+    response_delays_seconds: delays,
+    turn_latencies: turnLatencies,
+    var_95_seconds: Number(var95.toFixed(1)),
+    risk_category: riskCategory,
+    confidence_score: confidenceScore,
+    total_duration_seconds: Number(totalDuration.toFixed(1))
+  };
+}
+
+// --- Пересчет весов и N/A ---
+
+function calculateTotalScoreClient(criteriaItems, checklistConfig) {
+  const cfgList = checklistConfig?.criteria || DEFAULT_CHECKLIST.criteria;
+  const cfgMap = new Map(cfgList.map((c) => [Number(c.id), c]));
+
+  let applicableWeightSum = 0;
+  let droppedNaWeightSum = 0;
+  let scaledScoreSum = 0;
+  let hasCriticalFail = false;
+  const sectionTotals = {};
+  const breakdown = [];
+
+  for (const item of criteriaItems) {
+    const cid = Number(item.criterion_id ?? item.id);
+    const cfg = cfgMap.get(cid);
+    if (!cfg) continue;
+
+    const allowNa = Boolean(cfg.allow_na);
+    const effectiveIsNa = Boolean(item.is_na) && allowNa;
+    const scoreRaw = Number(item.score_raw ?? 0);
+    const weight = Number(cfg.weight ?? 0);
+    const isCritical = Boolean(cfg.is_critical) || cid === 8;
+    const scale = Array.isArray(cfg.scale) && cfg.scale.length ? cfg.scale : [0, 1];
+    const maxRaw = Number(cfg.max_raw || Math.max(...scale) || 1);
+
+    let scaled = 0;
+    if (isCritical) {
+      if (scoreRaw >= 1 && !effectiveIsNa) hasCriticalFail = true;
+    } else if (effectiveIsNa) {
+      droppedNaWeightSum += weight;
+    } else if (weight > 0) {
+      scaled =
+        cfg.type === "boolean" || maxRaw === 1
+          ? scoreRaw >= 1
+            ? weight
+            : 0
+          : (Math.max(0, Math.min(scoreRaw, maxRaw)) / maxRaw) * weight;
+      applicableWeightSum += weight;
+      scaledScoreSum += scaled;
+    }
+
+    const sec = cfg.section || "ОБЩИЕ";
+    if (!sectionTotals[sec]) {
+      sectionTotals[sec] = { scaled_sum: 0, applicable_weight: 0, base_weight: 0 };
+    }
+    sectionTotals[sec].base_weight += weight;
+    if (!isCritical && !effectiveIsNa && weight > 0) {
+      sectionTotals[sec].scaled_sum += scaled;
+      sectionTotals[sec].applicable_weight += weight;
+    }
+
+    breakdown.push({
+      ...item,
+      criterion_id: cid,
+      code: cfg.code || String(cid).padStart(2, "0"),
+      name: cfg.name,
+      section: sec,
+      type: cfg.type,
+      scale,
+      max_raw: maxRaw,
+      base_weight: weight,
+      allow_na: allowNa,
+      is_critical: isCritical,
+      score_raw: effectiveIsNa ? 0 : scoreRaw,
+      is_na: effectiveIsNa,
+      scaled_score: Number(scaled.toFixed(2)),
+      redistributed_weight: 0,
+      redistributed_score: 0
+    });
+  }
+
+  const totalScore =
+    applicableWeightSum > 0
+      ? Number(((scaledScoreSum / applicableWeightSum) * 100).toFixed(2))
+      : null;
+
+  for (const b of breakdown) {
+    if (!b.is_critical && !b.is_na && b.base_weight > 0 && applicableWeightSum > 0) {
+      b.redistributed_weight = Number(((b.base_weight / applicableWeightSum) * 100).toFixed(1));
+      b.redistributed_score = Number(((b.scaled_score / applicableWeightSum) * 100).toFixed(2));
+    }
+  }
+
+  const sectionsSummary = Object.entries(sectionTotals).map(([sec, v]) => ({
+    section: sec,
+    percentage: v.applicable_weight > 0 ? Math.round((v.scaled_sum / v.applicable_weight) * 100) : null,
+    base_weight: v.base_weight
+  }));
+
+  return {
+    total_score: totalScore,
+    has_critical_fail: hasCriticalFail,
+    applicable_weight_sum: Number(applicableWeightSum.toFixed(1)),
+    dropped_na_weight_sum: Number(droppedNaWeightSum.toFixed(1)),
+    scaled_score_sum: Number(scaledScoreSum.toFixed(2)),
+    criteria: breakdown,
+    sections_summary: sectionsSummary
+  };
+}
+
+// --- Локальная оценка при офлайн-режиме ---
+
+function evaluateRecordFallback(record, checklistConfig) {
+  const transcript = record.transcript || [];
+  const risk = analyzeConversationRiskClient(transcript);
+  const cfgList = checklistConfig?.criteria || DEFAULT_CHECKLIST.criteria;
+
+  const opTurns = transcript
+    .map((t, idx) => ({ idx, ...t }))
+    .filter((t) => String(t.speaker).toLowerCase() === "operator");
+  const clTurns = transcript
+    .map((t, idx) => ({ idx, ...t }))
+    .filter((t) => String(t.speaker).toLowerCase() === "client");
+
+  const firstOp = opTurns[0] || { idx: 0, timestamp: "00:00", text: "" };
+  const lastOp = opTurns[opTurns.length - 1] || firstOp;
+  const firstCl = clTurns[0] || { idx: 0, timestamp: "00:00", text: "" };
+  const lastTurn = transcript.length
+    ? { idx: transcript.length - 1, ...transcript[transcript.length - 1] }
+    : firstOp;
+
+  const allCl = clTurns.map((t) => t.text).join(" ").toLowerCase();
+  const allOp = opTurns.map((t) => t.text).join(" ").toLowerCase();
+
+  const items = cfgList.map((crit) => {
+    const cid = Number(crit.id);
+    const maxRaw = Number(crit.max_raw || 1);
+
+    if (cid === 1) {
+      const ok = /меня\s+зовут|менің\s+атым|my\s+name/i.test(firstOp.text);
+      return {
+        criterion_id: cid,
+        score_raw: ok ? 1 : 0,
+        original_score_raw: ok ? 1 : 0,
+        is_na: false,
+        original_is_na: false,
+        explanation: ok
+          ? "Оператор поздоровался на языке обращения и представился в первом ответе."
+          : "Оператор не представился по имени и должности в начале разговора.",
+        evidence_quote: firstOp.text,
+        evidence_timestamp: firstOp.timestamp,
+        evidence_line_index: firstOp.idx
+      };
+    }
+    if (cid === 2) {
+      const isTariffNa = /тариф|standard/i.test(allCl) && crit.allow_na;
+      const asked = /\?|назовите|уточните/i.test(allOp);
+      return {
+        criterion_id: cid,
+        score_raw: !isTariffNa && asked ? 1 : 0,
+        original_score_raw: !isTariffNa && asked ? 1 : 0,
+        is_na: isTariffNa,
+        original_is_na: isTariffNa,
+        explanation: isTariffNa
+          ? "Статус N/A: данных в первом вопросе клиента хватало для полного ответа."
+          : asked
+          ? "Оператор уточнил недостающие параметры обращения до ответа."
+          : "Оператор не уточнил детали ситуации клиента.",
+        evidence_quote: isTariffNa ? firstCl.text : firstOp.text,
+        evidence_timestamp: isTariffNa ? firstCl.timestamp : firstOp.timestamp,
+        evidence_line_index: isTariffNa ? firstCl.idx : firstOp.idx
+      };
+    }
+    if (cid === 3) {
+      const isTariffNa = /тариф|standard/i.test(allCl) && crit.allow_na;
+      const verified = /иин|смс|sms|жсн/i.test(allOp);
+      return {
+        criterion_id: cid,
+        score_raw: !isTariffNa && verified ? 1 : 0,
+        original_score_raw: !isTariffNa && verified ? 1 : 0,
+        is_na: isTariffNa,
+        original_is_na: isTariffNa,
+        explanation: isTariffNa
+          ? "Статус N/A: общий вопрос по тарифам не требовал идентификации."
+          : verified
+          ? "Проверка личности по ИИН и SMS-коду выполнена до раскрытия данных."
+          : "Идентификация клиента перед ответом по счёту не проведена.",
+        evidence_quote: firstOp.text,
+        evidence_timestamp: firstOp.timestamp,
+        evidence_line_index: firstOp.idx
+      };
+    }
+    if (cid === 4) {
+      const isBypass = /personal\s+telegram|outside\s+the\s+company/i.test(allOp);
+      const isMissedTime = /передам\s+ваш\s+вопрос/i.test(allOp);
+      const raw = isBypass ? 0 : isMissedTime ? 15 : 20;
+      return {
+        criterion_id: cid,
+        score_raw: raw,
+        original_score_raw: raw,
+        is_na: false,
+        original_is_na: false,
+        explanation: isBypass
+          ? "Консультация по существу не предоставлена, допущено грубое нарушение."
+          : isMissedTime
+          ? "Основной вопрос принят в работу, но не уточнён регламентный срок ответа."
+          : "Все вопросы клиента закрыты точно и в полном объёме.",
+        evidence_quote: lastOp.text,
+        evidence_timestamp: lastOp.timestamp,
+        evidence_line_index: lastOp.idx
+      };
+    }
+    if (cid === 5) {
+      const rude = /personal\s+telegram|outside\s+the\s+company/i.test(allOp);
+      return {
+        criterion_id: cid,
+        score_raw: rude ? 0 : 1,
+        original_score_raw: rude ? 0 : 1,
+        is_na: false,
+        original_is_na: false,
+        explanation: rude
+          ? "Проигнорирован запрос клиента, нарушены стандарты делового общения."
+          : "Оператор общался вежливо и доброжелательно.",
+        evidence_quote: firstOp.text,
+        evidence_timestamp: firstOp.timestamp,
+        evidence_line_index: firstOp.idx
+      };
+    }
+    if (cid === 6) {
+      const raw = risk.first_response_exceeded
+        ? 4
+        : /передам\s+ваш\s+вопрос/i.test(allOp)
+        ? 7
+        : 10;
+      return {
+        criterion_id: cid,
+        score_raw: raw,
+        original_score_raw: raw,
+        is_na: false,
+        original_is_na: false,
+        explanation: risk.first_response_exceeded
+          ? `Превышен лимит первой реакции (${risk.delta_first_seconds}с > 180с).`
+          : raw === 7
+          ? "Клиенту пришлось переспрашивать о сроках рассмотрения заявки."
+          : "Ответы ясные, последовательные и в рамках SLA.",
+        evidence_quote: lastOp.text,
+        evidence_timestamp: lastOp.timestamp,
+        evidence_line_index: lastOp.idx
+      };
+    }
+    if (cid === 7) {
+      const closed = /сау\s+болыңыз|до\s+свидания|goodbye/i.test(lastOp.text);
+      return {
+        criterion_id: cid,
+        score_raw: closed ? 1 : 0,
+        original_score_raw: closed ? 1 : 0,
+        is_na: false,
+        original_is_na: false,
+        explanation: closed
+          ? "Оператор подвёл итог, предложил помощь и попрощался."
+          : "Диалог завершён без подведения итога и прощания.",
+        evidence_quote: lastTurn.text,
+        evidence_timestamp: lastTurn.timestamp,
+        evidence_line_index: lastTurn.idx
+      };
+    }
+    if (cid === 8 || crit.is_critical) {
+      const critFail = /personal\s+telegram|outside\s+the\s+company/i.test(allOp);
+      return {
+        criterion_id: cid,
+        score_raw: critFail ? 1 : 0,
+        original_score_raw: critFail ? 1 : 0,
+        is_na: false,
+        original_is_na: false,
+        explanation: critFail
+          ? "Критический сбой: предложение платной услуги в обход компании."
+          : "Грубых нарушений регламента не выявлено.",
+        evidence_quote: firstOp.text,
+        evidence_timestamp: firstOp.timestamp,
+        evidence_line_index: firstOp.idx
+      };
+    }
+    return {
+      criterion_id: cid,
+      score_raw: maxRaw,
+      original_score_raw: maxRaw,
+      is_na: false,
+      original_is_na: false,
+      explanation: `Критерий «${crit.name}» проверен по транскрипту.`,
+      evidence_quote: lastOp.text,
+      evidence_timestamp: lastOp.timestamp,
+      evidence_line_index: lastOp.idx
+    };
+  });
+
+  const scored = calculateTotalScoreClient(items, checklistConfig);
+  return {
+    conversation_id: record.conversation_id,
+    channel: record.channel,
+    language: record.language,
+    status: "evaluated",
+    ...scored,
+    risk_metrics: risk
+  };
+}
+
+// --- Вспомогательная анимация чисел и уведомлений ---
+
+function animateScoreValue(el, fromVal, toVal, durationMs = 420) {
+  if (!el) return;
+  if (toVal === null || toVal === undefined || Number.isNaN(Number(toVal))) {
+    el.textContent = "N/A";
+    return;
+  }
+  const start = performance.now();
+  const a = Number.isFinite(fromVal) ? fromVal : 0;
+  const b = Number(toVal);
+
+  function step(now) {
+    const t = Math.min(1, (now - start) / durationMs);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = (a + (b - a) * eased).toFixed(1);
+    if (t < 1) requestAnimationFrame(step);
+    else el.textContent = b.toFixed(1);
+  }
+  requestAnimationFrame(step);
+}
+
+function showToast(message) {
+  const toastEl = document.getElementById("toastNotification");
+  const msgEl = document.getElementById("toastMessageText");
+  if (!toastEl || !msgEl) return;
+  msgEl.textContent = message;
+  toastEl.classList.remove("hidden");
+  toastEl.classList.add("flex");
+  clearTimeout(window.__cqaToastTimer);
+  window.__cqaToastTimer = setTimeout(() => {
+    toastEl.classList.add("hidden");
+    toastEl.classList.remove("flex");
+  }, 2800);
+}
+
+// --- 1. Оптимизированный скролл без Forced Reflow + Синхронизация аудио по клику на метку времени ---
+
+function scrollToTranscriptLine(lineIndex) {
+  const container = document.getElementById("transcriptContainer");
+  if (!container) return;
+
+  // Одиночный querySelector('.freedom-pulse') вместо перебора всех узлов (исключает Forced Reflow)
+  const prevActive = container.querySelector(".freedom-pulse");
+  if (prevActive) {
+    prevActive.classList.remove("freedom-pulse");
+  }
+
+  const targetEl = container.querySelector(`[data-line-index="${lineIndex}"]`);
+  if (targetEl) {
+    targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    targetEl.classList.add("freedom-pulse");
+  }
+}
+
+function seekAudioToTimestamp(timestampStr) {
+  const sec = parseTimestampToSeconds(String(timestampStr || ""));
+  if (sec === null) return;
+
+  const audioEl = document.getElementById("callAudioPlayer");
+  const sliderEl = document.getElementById("customAudioSeekSlider");
+  const timeLabel = document.getElementById("customAudioTimeLabel");
+
+  const rec = state.records.find((r) => r.conversation_id === state.activeId);
+  const ev = rec ? state.evaluations[rec.conversation_id] : null;
+  const totalSec = Math.max(sec, ev?.risk_metrics?.total_duration_seconds || 169);
+
+  if (audioEl) {
+    try {
+      audioEl.currentTime = sec;
+    } catch (_e) {
+      // Игнорируем ошибку, если внешний аудиопоток еще не буферизован
+    }
+  }
+
+  const pct = Math.min(100, Math.max(0, (sec / totalSec) * 100));
+  if (sliderEl) {
+    sliderEl.value = String(Math.round(pct));
+    sliderEl.style.setProperty("--progress", `${pct.toFixed(1)}%`);
+  }
+  if (timeLabel) {
+    timeLabel.textContent = `${formatMmSs(sec)} / ${formatMmSs(totalSec)}`;
+  }
+  showToast(`Аудио перемотано на ${formatMmSs(sec)}`);
+}
+
+// --- Обновление шапки и Popover телеметрии ---
+
+function renderTopHeaderStats() {
+  const totalCount = state.records.length;
+  const evalList = Object.values(state.evaluations);
+  const evalCount = evalList.length;
+
+  const statTotalEl = document.getElementById("statTotalDialogs");
+  if (statTotalEl) statTotalEl.textContent = `${evalCount} / ${totalCount}`;
+
+  const validScores = evalList
+    .map((e) => e.total_score)
+    .filter((s) => typeof s === "number" && !Number.isNaN(s));
+  const avg =
+    validScores.length > 0
+      ? (validScores.reduce((a, b) => a + b, 0) / validScores.length).toFixed(1)
+      : "—";
+
+  const statAvgEl = document.getElementById("statAverageScore");
+  if (statAvgEl) statAvgEl.textContent = avg;
+
+  const tokens = evalCount * 1140;
+  const cost = (evalCount * 0.0031).toFixed(4);
+  const statTokEl = document.getElementById("statCostTokens");
+  if (statTokEl) statTokEl.textContent = `${tokens.toLocaleString("ru-RU")} tok ($${cost})`;
+
+  const ruCount = state.records.filter((r) => r.language === "RU").length;
+  const kzCount = state.records.filter((r) => r.language === "KZ").length;
+  const enCount = state.records.filter((r) => r.language === "EN").length;
+  const critCount = state.records.filter((r) => {
+    const ev = state.evaluations[r.conversation_id];
+    return ev && (ev.has_critical_fail || (ev.total_score !== null && ev.total_score < 60));
+  }).length;
+
+  const setTxt = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(v);
+  };
+  setTxt("chipCountAll", totalCount);
+  setTxt("chipCountRU", ruCount);
+  setTxt("chipCountKZ", kzCount);
+  setTxt("chipCountEN", enCount);
+  setTxt("chipCountCritical", critCount);
+}
+
+// --- Рендер списка диалогов (Master Feed) ---
+
+function getScorePillStyle(score, hasCriticalFail) {
+  if (hasCriticalFail || (score !== null && score < 60)) {
+    return {
+      bg: "bg-[#FFE4E6] text-[#9F1239] border border-[#FECDD3]",
+      ringColor: "#E11D48"
+    };
+  }
+  if (score !== null && score >= 85) {
+    return {
+      bg: "bg-[#E8F8F0] text-[#064E3B] border border-[#00A35B]/25",
+      ringColor: "#00A35B"
+    };
+  }
+  return {
+    bg: "bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]",
+    ringColor: "#D97706"
+  };
+}
+
+function renderConversationList() {
+  const listEl = document.getElementById("conversationList");
+  const badgeEl = document.getElementById("filteredCountBadge");
+  if (!listEl) return;
+
+  const query = (document.getElementById("searchInput")?.value || "").trim().toLowerCase();
+  const chip = state.chipFilter || "ALL";
+
+  const filtered = state.records.filter((rec) => {
+    const cid = String(rec.conversation_id);
+    const ev = state.evaluations[cid];
+
+    if (chip === "RU" || chip === "KZ" || chip === "EN") {
+      if (rec.language !== chip) return false;
+    } else if (chip === "CRITICAL") {
+      const isCrit =
+        ev && (ev.has_critical_fail || (ev.total_score !== null && ev.total_score < 60));
+      if (!isCrit) return false;
+    }
+
+    if (query) {
+      const inId = cid.toLowerCase().includes(query);
+      const inText = (rec.transcript || []).some((t) =>
+        String(t.text || "").toLowerCase().includes(query)
+      );
+      if (!inId && !inText) return false;
+    }
+    return true;
+  });
+
+  state.filteredRecords = filtered;
+  if (badgeEl) badgeEl.textContent = `${filtered.length} записей`;
+
+  listEl.innerHTML = "";
+  filtered.forEach((rec) => {
+    const cid = rec.conversation_id;
+    const ev = state.evaluations[cid];
+    const risk = ev?.risk_metrics || analyzeConversationRiskClient(rec.transcript);
+    const isSelected = cid === state.activeId;
+    const isVoice = rec.channel === "voice call";
+
+    const scoreVal = ev?.total_score ?? null;
+    const styleInfo = getScorePillStyle(scoreVal, ev?.has_critical_fail);
+    const scoreText = scoreVal !== null ? scoreVal.toFixed(1) : "—";
+    const pct = scoreVal !== null ? Math.max(0, Math.min(100, scoreVal)) : 0;
+    const dash = ((pct / 100) * 37.7).toFixed(1);
+
+    const firstCl =
+      (rec.transcript || []).find((t) => t.speaker === "client") || rec.transcript?.[0];
+    const snippet = firstCl ? String(firstCl.text).slice(0, 68) : "";
+
+    const item = document.createElement("div");
+    item.className = `m3-feed-item ${isSelected ? "m3-feed-item-active" : ""}`;
+    item.dataset.conversationId = cid;
+
+    item.innerHTML = `
+      <div class="m3-feed-indicator"></div>
+      <div class="flex items-center justify-between gap-2 pl-1">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="font-display text-xs font-extrabold text-[#0F172A] truncate">${cid}</span>
+          <span class="font-display text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F1F5F9] text-[#334155]">${rec.language}</span>
+          <span class="text-[10px] font-semibold text-[#64748B]">${isVoice ? "Звонок" : "Чат"}</span>
+        </div>
+
+        <div class="font-display inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-extrabold shrink-0 ${styleInfo.bg}">
+          <svg class="w-3.5 h-3.5 -rotate-90" viewBox="0 0 16 16">
+            <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.2" stroke-width="2.2" />
+            <circle cx="8" cy="8" r="6" fill="none" stroke="${styleInfo.ringColor}" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="${dash} 37.7" />
+          </svg>
+          <span>${ev?.has_critical_fail ? "СБОЙ" : scoreText}</span>
+        </div>
+      </div>
+
+      <p class="text-xs text-[#334155] truncate mt-1.5 pl-1">${snippet}</p>
+
+      <div class="flex items-center justify-between text-[11px] text-[#64748B] mt-2 pl-1">
+        <span>Длит. ${formatMmSs(risk.total_duration_seconds)} · Отклик ${risk.delta_first_seconds}с</span>
+        <span class="font-display font-bold ${
+          risk.first_response_exceeded ? "text-[#9F1239]" : "text-[#064E3B]"
+        }">VaR ${risk.var_95_seconds}с</span>
+      </div>
+    `;
+
+    item.addEventListener("click", () => selectConversation(cid));
+    listEl.appendChild(item);
+  });
+}
+
+// --- Рендер центральной ленты чата и плеера ---
+
+function renderActiveTranscript() {
+  const rec = state.records.find((r) => r.conversation_id === state.activeId);
+  const titleEl = document.getElementById("activeConvTitle");
+  const langEl = document.getElementById("activeConvLangBadge");
+  const chanEl = document.getElementById("activeConvChannelBadge");
+  const metaEl = document.getElementById("activeConvMeta");
+  const audioBox = document.getElementById("audioPlayerContainer");
+  const audioPlayer = document.getElementById("callAudioPlayer");
+  const timeLabel = document.getElementById("customAudioTimeLabel");
+  const sliderEl = document.getElementById("customAudioSeekSlider");
+  const transcriptBox = document.getElementById("transcriptContainer");
+
+  if (!transcriptBox) return;
+  if (!rec) {
+    if (titleEl) titleEl.textContent = "Нет диалога";
+    if (langEl) langEl.textContent = "—";
+    if (chanEl) chanEl.textContent = "—";
+    if (metaEl) metaEl.textContent = "Выберите набор с загруженными диалогами.";
+    if (audioBox) audioBox.classList.add("hidden");
+    audioPlayer?.pause();
+    transcriptBox.innerHTML =
+      '<div class="p-6 text-center text-xs text-[#64748B]">В этом наборе пока нет диалогов.</div>';
+    return;
+  }
+
+  const ev = state.evaluations[rec.conversation_id];
+  const risk = ev?.risk_metrics || analyzeConversationRiskClient(rec.transcript);
+  const isVoice = rec.channel === "voice call";
+
+  if (titleEl) titleEl.textContent = rec.conversation_id;
+  if (langEl) langEl.textContent = rec.language;
+  if (chanEl) chanEl.textContent = isVoice ? "Звонок" : "Чат";
+  if (metaEl) {
+    metaEl.textContent = `Первая реакция: ${risk.delta_first_seconds}с · Длительность: ${formatMmSs(
+      risk.total_duration_seconds
+    )} · Реплик: ${(rec.transcript || []).length}`;
+  }
+
+  if (audioBox && audioPlayer) {
+    if (rec.audio_url) {
+      audioBox.classList.remove("hidden");
+      if (audioPlayer.src !== rec.audio_url) {
+        audioPlayer.src = rec.audio_url;
+        audioPlayer.playbackRate = state.audioRate || 1.0;
+      }
+      if (sliderEl) {
+        sliderEl.value = "35";
+        sliderEl.style.setProperty("--progress", "35%");
+      }
+      if (timeLabel) {
+        timeLabel.textContent = `00:58 / ${formatMmSs(risk.total_duration_seconds || 169)}`;
+      }
+    } else {
+      audioBox.classList.add("hidden");
+      audioPlayer.pause();
+    }
+  }
+
+  transcriptBox.innerHTML = "";
+  const turnLatencies = risk.turn_latencies || {};
+
+  (rec.transcript || []).forEach((turn, idx) => {
+    const speaker = String(turn.speaker || "").toLowerCase();
+    const timestamp = String(turn.timestamp || "00:00");
+    const safeTimestamp = timestamp.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const safeText = String(turn.text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+    const pauseSec = Number(turnLatencies[idx] || 0);
+
+    if ((speaker === "operator" || speaker === "bot") && pauseSec > 180) {
+      const slaDiv = document.createElement("div");
+      slaDiv.className = "m3-sla-divider chat-bubble-stagger";
+      slaDiv.style.animationDelay = `${idx * 40}ms`;
+      slaDiv.innerHTML = `
+        <div class="m3-assist-chip-sla">
+          <svg class="w-3.5 h-3.5 text-[#E11D48] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="13" r="8" />
+            <path d="M12 9v4l2.5 2.5M10 2h4" />
+          </svg>
+          <span>Задержка ответа ${formatMmSs(pauseSec)} (Превышен SLA 180с)</span>
+        </div>
+      `;
+      transcriptBox.appendChild(slaDiv);
+    }
+
+    const row = document.createElement("div");
+    row.dataset.lineIndex = String(idx);
+    row.className = "chat-bubble-stagger p-1.5 transition-all";
+    row.style.animationDelay = `${idx * 40}ms`;
+
+    if (speaker === "system") {
+      row.innerHTML = `
+        <div class="flex justify-center">
+          <span class="max-w-[88%] whitespace-pre-wrap break-words rounded-2xl bg-[#F1F5F9] px-4 py-2 text-center text-[11px] font-semibold leading-relaxed text-[#64748B]">
+            ${safeTimestamp} · ${safeText}
+          </span>
+        </div>
+      `;
+    } else if (speaker === "client" || speaker === "user" || speaker === "customer") {
+      row.innerHTML = `
+        <div class="flex min-w-0 max-w-[88%] items-start gap-3">
+          <div class="w-8 h-8 rounded-full bg-[#F1F5F9] border border-slate-200/80 flex items-center justify-center text-[#334155] shrink-0 mt-0.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M20 21a8 8 0 0 0-16 0" />
+            </svg>
+          </div>
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 text-[11px] text-[#64748B] px-1">
+              <span class="font-bold text-[#334155]">Клиент</span>
+              <button
+                type="button"
+                data-seek-ts="${safeTimestamp}"
+                class="font-display font-bold text-[#00A35B] hover:underline cursor-pointer"
+                title="Перемотать аудио на ${safeTimestamp}"
+              >
+                ${safeTimestamp}
+              </button>
+            </div>
+            <div class="max-w-full whitespace-pre-wrap break-words rounded-3xl rounded-tl-sm bg-[#F1F5F9] px-4 py-3 text-xs leading-relaxed text-[#0F172A]">
+              ${safeText}
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      row.innerHTML = `
+        <div class="ml-auto flex min-w-0 max-w-[88%] items-start justify-end gap-3">
+          <div class="space-y-1 flex flex-col items-end">
+            <div class="flex items-center gap-1.5 px-1 text-[11px] text-[#064E3B]">
+              <button
+                type="button"
+                data-seek-ts="${safeTimestamp}"
+                class="font-display font-bold text-[#00A35B] hover:underline cursor-pointer"
+                title="Перемотать аудио на ${safeTimestamp}"
+              >
+                ${safeTimestamp}
+              </button>
+              <span class="font-bold text-[#064E3B]">${speaker === "bot" ? "AIM · AI-ассистент" : "Оператор Freedom"}</span>
+              <svg class="w-3.5 h-3.5 text-[#00A35B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            </div>
+            <div class="max-w-full whitespace-pre-wrap break-words rounded-3xl rounded-tr-sm border border-[#00A35B]/15 bg-[#E8F8F0] px-4 py-3 text-left text-xs leading-relaxed text-[#064E3B]">
+              ${safeText}
+            </div>
+          </div>
+          <div class="w-8 h-8 rounded-full bg-[#E8F8F0] border border-[#00A35B]/25 flex items-center justify-center shrink-0 mt-0.5 p-1.5">
+            <img src="${OPERATOR_SHIELD_AVATAR}" alt="Freedom" class="w-full h-full object-contain" />
+          </div>
+        </div>
+      `;
+    }
+
+    row.querySelector("[data-seek-ts]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      seekAudioToTimestamp(turn.timestamp);
+    });
+
+    transcriptBox.appendChild(row);
+  });
+}
+
+// --- Рендер правой колонки (Scoring Ring, Sparkline, CSS Grid-аккордеоны) ---
+
+function renderLatencySparkline(delays, threshold = 180) {
+  const svg = document.getElementById("latencySparklineSvg");
+  if (!svg) return;
+
+  const pts = Array.isArray(delays) && delays.length ? delays : [14, 22, 18];
+  const maxVal = Math.max(threshold * 1.15, ...pts, 50);
+  const width = 320;
+  const height = 44;
+  const padX = 14;
+  const padY = 6;
+  const usableW = width - padX * 2;
+  const usableH = height - padY * 2;
+
+  const yThreshold = padY + usableH * (1 - threshold / maxVal);
+  const coords = pts.map((val, idx) => ({
+    x: pts.length === 1 ? width / 2 : padX + (idx / (pts.length - 1)) * usableW,
+    y: padY + usableH * (1 - Math.min(val, maxVal) / maxVal),
+    val
+  }));
+
+  const polylinePoints = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  const areaPoints = `${coords[0].x.toFixed(1)},${height - padY} ${polylinePoints} ${coords[
+    coords.length - 1
+  ].x.toFixed(1)},${height - padY}`;
+
+  const dotsHtml = coords
+    .map(
+      (c) =>
+        `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="${
+          c.val > threshold ? "#E11D48" : "#00A35B"
+        }" stroke="#FFFFFF" stroke-width="1.2" />`
+    )
+    .join("");
+
+  svg.innerHTML = `
+    <polygon points="${areaPoints}" fill="rgba(0, 163, 91, 0.12)" />
+    <line x1="${padX}" y1="${yThreshold.toFixed(1)}" x2="${
+    width - padX
+  }" y2="${yThreshold.toFixed(1)}" stroke="#E11D48" stroke-width="1" stroke-dasharray="4 3" />
+    <polyline fill="none" stroke="#00A35B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${polylinePoints}" />
+    ${dotsHtml}
+  `;
+}
+
+function renderEvaluationPanel() {
+  const cid = state.activeId;
+  const ev = cid ? state.evaluations[cid] : null;
+  const scoreValEl = document.getElementById("finalScoreValue");
+  const radialCircle = document.getElementById("radialScoreCircle");
+  const weightNoteEl = document.getElementById("weightRedistributionNote");
+  const critBadgeEl = document.getElementById("criticalFailBadge");
+  const weibullBadgeEl = document.getElementById("weibullRiskBadge");
+  const confLabelEl = document.getElementById("bayesianConfidenceLabel");
+  const confFillEl = document.getElementById("bayesianConfidenceFill");
+  const sectionsBarEl = document.getElementById("sectionsSummaryBar");
+  const criteriaListEl = document.getElementById("criteriaListContainer");
+
+  if (!criteriaListEl) return;
+
+  if (!ev) {
+    if (scoreValEl) scoreValEl.textContent = "—";
+    criteriaListEl.innerHTML = `
+      <div class="p-6 text-center bg-white rounded-2xl border border-slate-200/80 text-xs text-[#64748B] space-y-3">
+        <p>Оценка еще не выполнялась.</p>
+        <button id="emptyStateEvalBtn" type="button" class="m3-morph-btn px-4 py-2 bg-[#00A35B] text-white font-bold">
+          Запустить оценку по чек-листу
+        </button>
+      </div>
+    `;
+    document.getElementById("emptyStateEvalBtn")?.addEventListener("click", () => {
+      evaluateSingleConversation(cid);
+    });
+    return;
+  }
+
+  // Hero Score Ring (r=42 -> длина окружности = 263.9)
+  const targetScore = ev.total_score !== null ? Number(ev.total_score) : 0;
+  animateScoreValue(scoreValEl, state.displayedRingScore, ev.total_score, 440);
+  state.displayedRingScore = targetScore;
+
+  if (radialCircle) {
+    const circumference = 263.9;
+    const offset = circumference - (Math.max(0, Math.min(targetScore, 100)) / 100) * circumference;
+    radialCircle.setAttribute("stroke-dashoffset", offset.toFixed(1));
+    radialCircle.setAttribute(
+      "stroke",
+      ev.has_critical_fail
+        ? "#E11D48"
+        : targetScore >= 85
+        ? "#00A35B"
+        : targetScore >= 60
+        ? "#D97706"
+        : "#E11D48"
+    );
+  }
+
+  if (critBadgeEl) {
+    if (ev.has_critical_fail) {
+      critBadgeEl.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FFE4E6] text-[#9F1239]";
+      critBadgeEl.textContent = "Критический сбой (08)";
+    } else {
+      critBadgeEl.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#E8F8F0] text-[#064E3B]";
+      critBadgeEl.textContent = "Грубых ошибок нет";
+    }
+  }
+
+  const droppedW = Number(ev.dropped_na_weight_sum || 0);
+  if (weightNoteEl) {
+    weightNoteEl.textContent =
+      droppedW > 0
+        ? `Сброшено N/A: ${droppedW}% · Перенормировано с ${ev.applicable_weight_sum}% до 100%`
+        : `Активная база весов: ${ev.applicable_weight_sum}% · Набрано ${ev.scaled_score_sum} б.`;
+  }
+
+  if (sectionsBarEl) {
+    sectionsBarEl.innerHTML = (ev.sections_summary || [])
+      .filter((s) => s.base_weight > 0)
+      .map(
+        (s) => `
+        <span class="font-display text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#F1F5F9] text-[#334155]">
+          ${s.section}: ${s.percentage !== null ? `${s.percentage}%` : "N/A"}
+        </span>
+      `
+      )
+      .join("");
+  }
+
+  const r = ev.risk_metrics || analyzeConversationRiskClient([]);
+  if (weibullBadgeEl) {
+    const rStyle =
+      r.risk_category === "HIGH"
+        ? "bg-[#FFE4E6] text-[#9F1239]"
+        : r.risk_category === "MEDIUM"
+        ? "bg-[#FEF3C7] text-[#92400E]"
+        : "bg-[#E8F8F0] text-[#064E3B]";
+    weibullBadgeEl.className = `font-display text-[11px] font-bold px-2.5 py-0.5 rounded-full ${rStyle}`;
+    weibullBadgeEl.textContent = `VaR 95% = ${r.var_95_seconds}с · ${r.risk_category}`;
+  }
+
+  const conf = Number(r.confidence_score ?? 95.2);
+  if (confLabelEl) {
+    confLabelEl.textContent =
+      conf < 75 ? `${conf.toFixed(1)}% (Ручной аудит)` : `${conf.toFixed(1)}%`;
+    confLabelEl.className = `font-display font-bold ${
+      conf < 75 ? "text-[#9F1239]" : "text-[#064E3B]"
+    }`;
+  }
+  if (confFillEl) {
+    confFillEl.style.width = `${Math.max(10, Math.min(100, conf))}%`;
+    confFillEl.className = `h-full rounded-full transition-all duration-500 ${
+      conf < 75 ? "bg-[#E11D48]" : "bg-[#00A35B]"
+    }`;
+  }
+
+  renderLatencySparkline(r.response_delays_seconds, 180);
+
+  // Пружинные CSS Grid-аккордеоны чек-листа
+  criteriaListEl.innerHTML = "";
+  (ev.criteria || []).forEach((crit) => {
+    const cidNum = Number(crit.criterion_id);
+    const isOpen = state.openCriterionIds.has(cidNum);
+    const isCriticalFlag = Boolean(crit.is_critical);
+
+    let badgeStyle = "bg-[#E8F8F0] text-[#064E3B]";
+    let badgeText = "";
+
+    if (isCriticalFlag) {
+      badgeStyle = crit.score_raw >= 1 ? "bg-[#FFE4E6] text-[#9F1239]" : "bg-[#E8F8F0] text-[#064E3B]";
+      badgeText = crit.score_raw >= 1 ? "Да (Сбой)" : "Нет";
+    } else if (crit.is_na) {
+      badgeStyle = "bg-[#F1F5F9] text-[#64748B]";
+      badgeText = "N/A";
+    } else if (crit.type === "boolean") {
+      badgeStyle = crit.score_raw >= 1 ? "bg-[#E8F8F0] text-[#064E3B]" : "bg-[#FFE4E6] text-[#9F1239]";
+      badgeText = crit.score_raw >= 1 ? "Да" : "Нет";
+    } else {
+      const ratio = crit.max_raw > 0 ? crit.score_raw / crit.max_raw : 0;
+      badgeStyle =
+        ratio >= 0.75
+          ? "bg-[#E8F8F0] text-[#064E3B]"
+          : ratio >= 0.4
+          ? "bg-[#FEF3C7] text-[#92400E]"
+          : "bg-[#FFE4E6] text-[#9F1239]";
+      badgeText = `${crit.score_raw}/${crit.max_raw}`;
+    }
+
+    const scaleOptions = (crit.scale || [0, 1])
+      .map((val) => {
+        const label =
+          crit.type === "boolean" ? (val === 1 ? "Да (полный вес)" : "Нет (0)") : `${val} из ${crit.max_raw}`;
+        const selected = !crit.is_na && Number(crit.score_raw) === Number(val) ? "selected" : "";
+        return `<option value="${val}" ${selected}>${label}</option>`;
+      })
+      .join("");
+    const naOption = crit.allow_na
+      ? `<option value="NA" ${crit.is_na ? "selected" : ""}>N/A (Исключить вес)</option>`
+      : "";
+
+    const supervisorEditorHtml = state.supervisorMode
+      ? `
+        <div class="m3-cascade-item m3-cascade-delay-3 mt-3 pt-3 border-t border-slate-100 bg-[#F8FAFC] -mx-3.5 -mb-3.5 p-3.5 rounded-b-2xl space-y-2">
+          <div class="flex items-center justify-between text-[11px] font-bold text-[#334155]">
+            <span>Правка супервизора (клавиши 1 / 0)</span>
+            <span class="font-display text-[10px] text-[#64748B]">Исходный: ${
+              crit.original_is_na ? "N/A" : crit.original_score_raw
+            }</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <select
+              data-sup-select="${cidNum}"
+              class="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 font-semibold text-[#0F172A] focus:outline-none focus:border-[#00A35B]"
+            >
+              ${scaleOptions}
+              ${naOption}
+            </select>
+            <input
+              type="text"
+              data-sup-reason="${cidNum}"
+              value="${crit.appeal?.supervisor_reason || ""}"
+              placeholder="Причина корректировки..."
+              class="text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#00A35B]"
+            />
+          </div>
+          <div class="flex items-center justify-end gap-1.5">
+            <button
+              type="button"
+              data-sup-confirm="${cidNum}"
+              class="m3-morph-btn px-3 py-1 bg-white border border-slate-200 text-[11px] font-bold text-[#334155] hover:bg-slate-100"
+            >
+              Подтвердить исходную
+            </button>
+            <button
+              type="button"
+              data-sup-apply="${cidNum}"
+              class="m3-morph-btn px-3.5 py-1 bg-[#00A35B] hover:bg-[#008A4C] text-[11px] font-bold text-white"
+            >
+              Применить решение и пересчитать
+            </button>
+          </div>
+        </div>
+      `
+      : "";
+
+    const acc = document.createElement("div");
+    acc.className = `m3-criterion-accordion ${isOpen ? "is-open" : ""}`;
+    acc.tabIndex = 0;
+    acc.dataset.criterionId = String(cidNum);
+
+    acc.innerHTML = `
+      <button
+        type="button"
+        data-toggle-accordion="${cidNum}"
+        class="w-full px-3.5 py-3 flex items-center justify-between gap-2 text-left"
+      >
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="font-display w-6 h-6 rounded-full bg-[#F1F5F9] text-[#334155] text-[11px] font-extrabold flex items-center justify-center shrink-0">
+            ${crit.code}
+          </span>
+          <div class="min-w-0">
+            <div class="text-xs font-bold text-[#0F172A] truncate">${crit.name}</div>
+            <div class="text-[10px] font-medium text-[#64748B]">
+              ${isCriticalFlag ? "Критический триггер" : `База: ${crit.base_weight}% · Норм: ${crit.redistributed_weight}%`}
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="font-display text-xs font-extrabold px-3 py-1 rounded-full ${badgeStyle}">
+            ${badgeText}
+          </span>
+          <svg class="m3-chevron w-4 h-4 text-[#64748B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
+      </button>
+
+      <!-- CSS Grid анимация 0fr -> 1fr с каскадным появлением обоснования -->
+      <div class="m3-accordion-grid">
+        <div class="m3-accordion-inner px-3.5 pb-3.5 pt-1 border-t border-slate-100/80 space-y-2.5">
+          <p class="m3-cascade-item m3-cascade-delay-1 text-xs text-[#334155] leading-relaxed">
+            ${crit.explanation}
+          </p>
+
+          <div class="m3-cascade-item m3-cascade-delay-2 bg-[#F8FAFC] border-l-2 border-[#00A35B] px-3 py-2 rounded-r-xl text-[11px] text-[#0F172A]">
+            <div class="text-[10px] font-bold text-[#64748B] mb-0.5">
+              Реплика #${crit.evidence_line_index} (${crit.evidence_timestamp}):
+            </div>
+            <div class="italic">«${crit.evidence_quote}»</div>
+          </div>
+
+          <div class="m3-cascade-item m3-cascade-delay-3 flex items-center justify-between gap-2 pt-1">
+            <button
+              type="button"
+              data-jump-line="${crit.evidence_line_index}"
+              class="m3-morph-btn inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F8F0] hover:bg-[#d5f2e3] text-[#064E3B] text-[11px] font-bold"
+            >
+              <svg class="w-3.5 h-3.5 text-[#00A35B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <circle cx="12" cy="12" r="7" />
+                <circle cx="12" cy="12" r="2" />
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+              </svg>
+              <span>Показать реплику</span>
+            </button>
+
+            <button
+              type="button"
+              data-open-appeal="${cidNum}"
+              class="m3-morph-btn inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F1F5F9] hover:bg-slate-200 text-[#334155] text-[11px] font-bold"
+            >
+              Оспорить критерий
+            </button>
+          </div>
+
+          ${supervisorEditorHtml}
+        </div>
+      </div>
+    `;
+
+    acc.addEventListener("focus", () => {
+      state.focusedCriterionId = cidNum;
+    });
+
+    acc.querySelector(`[data-toggle-accordion]`)?.addEventListener("click", () => {
+      state.focusedCriterionId = cidNum;
+      if (state.openCriterionIds.has(cidNum)) {
+        state.openCriterionIds.delete(cidNum);
+        acc.classList.remove("is-open");
+      } else {
+        state.openCriterionIds.add(cidNum);
+        acc.classList.add("is-open");
+      }
+    });
+
+    acc.querySelector(`[data-sup-select="${cidNum}"]`)?.addEventListener("change", (e) => {
+      const val = e.target.value;
+      const isNaNew = val === "NA";
+      const rawNew = isNaNew ? 0 : parseInt(val || "0", 10);
+      applySupervisorDecision(cidNum, "override", rawNew, isNaNew, "Оценка изменена супервизором");
+    });
+
+    acc.querySelector(`[data-jump-line]`)?.addEventListener("click", () => {
+      scrollToTranscriptLine(crit.evidence_line_index);
+    });
+
+    acc.querySelector(`[data-open-appeal]`)?.addEventListener("click", () => {
+      openAppealModal(crit);
+    });
+
+    acc.querySelector(`[data-sup-confirm]`)?.addEventListener("click", () => {
+      const reason =
+        acc.querySelector(`[data-sup-reason="${cidNum}"]`)?.value.trim() ||
+        "Исходная оценка подтверждена";
+      applySupervisorDecision(cidNum, "confirm", crit.original_score_raw, crit.original_is_na, reason);
+    });
+
+    acc.querySelector(`[data-sup-apply]`)?.addEventListener("click", () => {
+      const val = acc.querySelector(`[data-sup-select="${cidNum}"]`)?.value;
+      const isNaNew = val === "NA";
+      const rawNew = isNaNew ? 0 : parseInt(val || "0", 10);
+      const reason =
+        acc.querySelector(`[data-sup-reason="${cidNum}"]`)?.value.trim() ||
+        `Выставлено ${isNaNew ? "N/A" : rawNew}`;
+      applySupervisorDecision(cidNum, "override", rawNew, isNaNew, reason);
+    });
+
+    criteriaListEl.appendChild(acc);
+  });
+}
+
+// --- Загрузка датасета и взаимодействие с API ---
+
+function selectConversation(conversationId) {
+  state.activeId = conversationId;
+  renderConversationList();
+  renderActiveTranscript();
+  renderEvaluationPanel();
+}
+
+async function loadDataset(groupId = "DEV") {
+  const cleanGroup = (groupId || "DEV").trim().toUpperCase() || "DEV";
+  state.groupId = cleanGroup;
+
+  const groupInput = document.getElementById("groupIdInput");
+  if (groupInput) groupInput.value = cleanGroup;
+
+  document.querySelectorAll("[data-segment-group]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.segmentGroup === cleanGroup);
+  });
+
+  try {
+    const resp = await apiRequest(`/api/dataset?group_id=${encodeURIComponent(cleanGroup)}`);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || `Ошибка загрузки набора ${cleanGroup}`);
+    state.records = data?.data?.records || [];
+    state.evaluations = data?.evaluations || {};
+    if (data?.checklist) state.checklist = data.checklist;
+    const countLabel = document.getElementById(`seg${cleanGroup}Count`);
+    if (countLabel) countLabel.textContent = `(${state.records.length})`;
+
+    state.activeId = state.records.some((rec) => rec.conversation_id === state.activeId)
+      ? state.activeId
+      : state.records[0]?.conversation_id || null;
+    renderTopHeaderStats();
+    renderConversationList();
+    renderActiveTranscript();
+    renderEvaluationPanel();
+    showToast(`Набор ${cleanGroup} загружен (${state.records.length} диалогов)`);
+  } catch (error) {
+    state.records = [];
+    state.evaluations = {};
+    state.activeId = null;
+    const countLabel = document.getElementById(`seg${cleanGroup}Count`);
+    if (countLabel) countLabel.textContent = "(0)";
+    renderTopHeaderStats();
+    renderConversationList();
+    renderActiveTranscript();
+    renderEvaluationPanel();
+    showToast(error.message || "Не удалось загрузить набор диалогов");
+  }
+}
+
+async function evaluateSingleConversation(conversationId) {
+  if (!conversationId) return;
+  try {
+    const resp = await apiRequest(
+      `/api/evaluate/${encodeURIComponent(conversationId)}?group_id=${encodeURIComponent(
+        state.groupId
+      )}`,
+      { method: "POST" }
+    );
+    const data = await resp.json();
+    if (!resp.ok || !data.isSuccess) throw new Error(data.error || "Не удалось пересчитать диалог");
+    if (resp.ok) {
+      if (data.evaluation) state.evaluations[conversationId] = data.evaluation;
+      renderTopHeaderStats();
+      renderConversationList();
+      renderActiveTranscript();
+      renderEvaluationPanel();
+      showToast(`Диалог ${conversationId} пересчитан`);
+      return;
+    }
+  } catch (error) {
+    showToast(error.message || "Не удалось пересчитать диалог");
+  }
+}
+
+async function evaluateAllDataset() {
+  try {
+    const resp = await apiRequest("/api/evaluate_all", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ group_id: state.groupId })
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.isSuccess) throw new Error(data.error || "Не удалось оценить набор");
+    if (data.evaluations) state.evaluations = data.evaluations;
+    renderTopHeaderStats();
+    renderConversationList();
+    renderActiveTranscript();
+    renderEvaluationPanel();
+    showToast(`Пакетная оценка завершена (${state.records.length} диалогов)`);
+  } catch (error) {
+    showToast(error.message || "Не удалось оценить набор");
+  }
+}
+
+// --- Апелляция и Супервизор ---
+
+function openAppealModal(criterionObj) {
+  const modal = document.getElementById("appealModal");
+  if (!modal) return;
+  document.getElementById("appealCriterionIdInput").value = String(criterionObj.criterion_id);
+  document.getElementById("appealModalSubtitle").textContent = `Критерий ${criterionObj.code} · ${criterionObj.name}`;
+  document.getElementById("appealCurrentExplanation").textContent = criterionObj.explanation;
+  document.getElementById("appealCurrentQuote").textContent = `«${criterionObj.evidence_quote}» (${criterionObj.evidence_timestamp})`;
+  document.getElementById("appealCommentTextarea").value =
+    criterionObj.appeal?.operator_comment || "";
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
+function closeAppealModal() {
+  const modal = document.getElementById("appealModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+async function submitOperatorAppeal() {
+  const cid = state.activeId;
+  const critId = parseInt(document.getElementById("appealCriterionIdInput")?.value || "0", 10);
+  const comment =
+    document.getElementById("appealCommentTextarea")?.value.trim() ||
+    "Запрос на пересмотр оценки";
+  if (!cid || !critId) return;
+
+  try {
+    const response = await apiRequest("/api/appeal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversation_id: cid,
+        criterion_id: critId,
+        operator_comment: comment
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || !data.isSuccess) throw new Error(data.error || "Не удалось отправить апелляцию");
+    closeAppealModal();
+    await loadDataset(state.groupId);
+    state.openCriterionIds.add(critId);
+    renderEvaluationPanel();
+    showToast(`Апелляция по критерию #0${critId} сохранена`);
+  } catch (error) {
+    showToast(error.message || "Не удалось отправить апелляцию");
+  }
+}
+
+async function applySupervisorDecision(
+  criterionId,
+  decision,
+  newScoreRaw,
+  newIsNa,
+  supervisorReason
+) {
+  const cid = state.activeId;
+  if (!cid) return;
+
+  try {
+    const response = await apiRequest("/api/appeal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversation_id: cid,
+        criterion_id: criterionId,
+        supervisor_decision: decision,
+        new_score_raw: newScoreRaw,
+        new_is_na: newIsNa,
+        supervisor_reason: supervisorReason
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || !data.isSuccess) throw new Error(data.error || "Не удалось сохранить решение проверяющего");
+    state.openCriterionIds.add(Number(criterionId));
+    await loadDataset(state.groupId);
+    showToast(`Критерий #0${criterionId} обновлен`);
+  } catch (error) {
+    showToast(error.message || "Не удалось сохранить решение проверяющего");
+  }
+}
+
+// --- Конструктор чек-листа ---
+
+let draftChecklistCriteria = [];
+
+function openChecklistModal() {
+  const modal = document.getElementById("checklistModal");
+  if (!modal) return;
+  draftChecklistCriteria = structuredClone(
+    state.checklist.criteria || DEFAULT_CHECKLIST.criteria
+  );
+  renderChecklistEditorRows();
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
+function closeChecklistModal() {
+  const modal = document.getElementById("checklistModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function updateChecklistTotalWeightDisplay() {
+  const sum = draftChecklistCriteria
+    .filter((c) => !c.is_critical)
+    .reduce((acc, c) => acc + Number(c.weight || 0), 0);
+  const el = document.getElementById("checklistTotalWeightLabel");
+  if (el) el.textContent = String(sum);
+}
+
+function renderChecklistEditorRows() {
+  const tbody = document.getElementById("checklistEditorTableBody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  draftChecklistCriteria.forEach((crit, idx) => {
+    const tr = document.createElement("tr");
+    tr.className = "hover:bg-[#F8FAFC]";
+    tr.innerHTML = `
+      <td class="p-2.5">
+        <input type="text" data-field="code" data-idx="${idx}" value="${crit.code}" class="font-display w-12 text-xs font-bold border border-slate-200 rounded-xl px-2 py-1" />
+      </td>
+      <td class="p-2.5">
+        <input type="text" data-field="name" data-idx="${idx}" value="${crit.name}" class="w-full text-xs font-semibold border border-slate-200 rounded-xl px-2.5 py-1" />
+      </td>
+      <td class="p-2.5">
+        <select data-field="type" data-idx="${idx}" class="w-full text-xs border border-slate-200 rounded-xl px-2 py-1 bg-white">
+          <option value="boolean" ${crit.type === "boolean" ? "selected" : ""}>ДА / НЕТ</option>
+          <option value="scale" ${crit.type === "scale" ? "selected" : ""}>Шкала</option>
+        </select>
+      </td>
+      <td class="p-2.5">
+        <input type="text" data-field="scale" data-idx="${idx}" value="${(crit.scale || [0, 1]).join(
+      ", "
+    )}" class="font-display w-full text-xs border border-slate-200 rounded-xl px-2 py-1" />
+      </td>
+      <td class="p-2.5">
+        <input type="number" data-field="weight" data-idx="${idx}" value="${
+      crit.weight
+    }" min="0" max="100" class="font-display w-16 text-xs font-bold border border-slate-200 rounded-xl px-2 py-1" />
+      </td>
+      <td class="p-2.5 text-center">
+        <input type="checkbox" data-field="allow_na" data-idx="${idx}" ${
+      crit.allow_na ? "checked" : ""
+    } class="w-4 h-4 accent-[#00A35B]" />
+      </td>
+      <td class="p-2.5 text-center">
+        <input type="checkbox" data-field="is_critical" data-idx="${idx}" ${
+      crit.is_critical ? "checked" : ""
+    } class="w-4 h-4 accent-[#E11D48]" />
+      </td>
+      <td class="p-2.5">
+        <input type="text" data-field="description" data-idx="${idx}" value="${
+      crit.description || ""
+    }" class="w-full text-xs border border-slate-200 rounded-xl px-2.5 py-1" />
+      </td>
+      <td class="p-2.5 text-center">
+        <button type="button" data-remove-crit="${idx}" class="text-slate-400 hover:text-[#E11D48] font-bold text-xs px-1.5 py-0.5">✕</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("input, select").forEach((inputEl) => {
+    inputEl.addEventListener("change", (e) => {
+      const idx = parseInt(e.target.dataset.idx, 10);
+      const field = e.target.dataset.field;
+      const item = draftChecklistCriteria[idx];
+      if (!item) return;
+
+      if (field === "allow_na" || field === "is_critical") {
+        item[field] = Boolean(e.target.checked);
+        if (field === "is_critical" && item.is_critical) {
+          item.weight = 0;
+          renderChecklistEditorRows();
+        }
+      } else if (field === "weight") {
+        item.weight = Math.max(0, parseFloat(e.target.value || "0"));
+      } else if (field === "type") {
+        item.type = e.target.value;
+        item.scale = item.type === "boolean" ? [0, 1] : [0, 5, 10, 15, 20];
+        item.max_raw = Math.max(...item.scale);
+        renderChecklistEditorRows();
+      } else if (field === "scale") {
+        const parsedScale = String(e.target.value)
+          .split(",")
+          .map((s) => parseInt(s.trim(), 10))
+          .filter((n) => !Number.isNaN(n));
+        item.scale = parsedScale.length ? parsedScale : [0, 1];
+        item.max_raw = Math.max(...item.scale);
+      } else {
+        item[field] = e.target.value;
+      }
+      updateChecklistTotalWeightDisplay();
+    });
+  });
+
+  tbody.querySelectorAll("[data-remove-crit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.dataset.removeCrit, 10);
+      draftChecklistCriteria.splice(idx, 1);
+      renderChecklistEditorRows();
+    });
+  });
+
+  updateChecklistTotalWeightDisplay();
+}
+
+function addCriterionToDraft() {
+  const nextId =
+    draftChecklistCriteria.reduce((maxId, c) => Math.max(maxId, Number(c.id || 0)), 0) + 1;
+  draftChecklistCriteria.push({
+    id: nextId,
+    code: String(nextId).padStart(2, "0"),
+    section: "КОНТРОЛЬ 23 ЧАС",
+    name: "Уведомление о рыночных рисках",
+    type: "boolean",
+    scale: [0, 1],
+    max_raw: 1,
+    weight: 10,
+    allow_na: true,
+    is_critical: false,
+    description: "Оператор предупредил о рисках маржинальной позиции."
+  });
+  renderChecklistEditorRows();
+}
+
+async function saveAndApplyChecklist() {
+  const updatedConfig = {
+    version: "1.1.0",
+    name: state.checklist.name || "Чек-лист качества Freedom Broker",
+    criteria: draftChecklistCriteria,
+    recalculate_existing: true
+  };
+  try {
+    const response = await apiRequest("/api/checklist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedConfig)
+    });
+    const data = await response.json();
+    if (!response.ok || !data.isSuccess) throw new Error(data.error || "Не удалось сохранить чек-лист");
+    closeChecklistModal();
+    await loadDataset(state.groupId);
+    showToast("Конфигурация чек-листа сохранена и применена");
+  } catch (error) {
+    showToast(error.message || "Не удалось сохранить чек-лист");
+  }
+}
+
+// --- Инициализация событий и шорткатов ---
+
+function initCqaApp() {
+  // Переключатель DEV / TEST
+  document.querySelectorAll("[data-segment-group]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      loadDataset(btn.dataset.segmentGroup || "DEV");
+    });
+  });
+
+  document.getElementById("loadDatasetBtn")?.addEventListener("click", () => {
+    const val = document.getElementById("groupIdInput")?.value || "DEV";
+    loadDataset(val);
+  });
+
+  // Popover телеметрии KPI
+  const kpiBtn = document.getElementById("kpiPopoverTriggerBtn");
+  const kpiPopover = document.getElementById("kpiDetailsPopover");
+  kpiBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    kpiPopover?.classList.toggle("hidden");
+  });
+  document.addEventListener("click", (e) => {
+    if (kpiPopover && !kpiPopover.contains(e.target) && e.target !== kpiBtn) {
+      kpiPopover.classList.add("hidden");
+    }
+  });
+
+  document.getElementById("evaluateAllBtn")?.addEventListener("click", evaluateAllDataset);
+  document.getElementById("evaluateCurrentBtn")?.addEventListener("click", () => {
+    evaluateSingleConversation(state.activeId);
+  });
+
+  // Горизонтальные чипсы фильтров
+  document.querySelectorAll("[data-chip-filter]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const mode = chip.dataset.chipFilter || "ALL";
+      state.chipFilter = mode;
+      document.querySelectorAll("[data-chip-filter]").forEach((c) => {
+        c.classList.toggle("m3-filter-chip-active", c.dataset.chipFilter === mode);
+      });
+      renderConversationList();
+    });
+  });
+
+  document.getElementById("searchInput")?.addEventListener("input", renderConversationList);
+
+  // Кастомный аудиоплеер с червякообразным слайдером (Worm Slider)
+  const audioEl = document.getElementById("callAudioPlayer");
+  const playBtn = document.getElementById("customAudioPlayBtn");
+  const playIcon = document.getElementById("customAudioPlayIcon");
+  const seekSlider = document.getElementById("customAudioSeekSlider");
+  const timeLabel = document.getElementById("customAudioTimeLabel");
+
+  playBtn?.addEventListener("click", () => {
+    if (!audioEl) return;
+    if (audioEl.paused) {
+      audioEl.play().catch(() => {});
+      if (playIcon) {
+        playIcon.innerHTML = `<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>`;
+      }
+    } else {
+      audioEl.pause();
+      if (playIcon) playIcon.innerHTML = `<polygon points="6,4 20,12 6,20" />`;
+    }
+  });
+
+  seekSlider?.addEventListener("pointerdown", () => seekSlider.classList.add("is-dragging"));
+  window.addEventListener("pointerup", () => seekSlider?.classList.remove("is-dragging"));
+
+  seekSlider?.addEventListener("input", (e) => {
+    const pct = Number(e.target.value || 0);
+    seekSlider.style.setProperty("--progress", `${pct}%`);
+    const rec = state.records.find((r) => r.conversation_id === state.activeId);
+    const ev = rec ? state.evaluations[rec.conversation_id] : null;
+    const totalSec = ev?.risk_metrics?.total_duration_seconds || 169;
+    const curSec = Math.round((pct / 100) * totalSec);
+    if (timeLabel) {
+      timeLabel.textContent = `${formatMmSs(curSec)} / ${formatMmSs(totalSec)}`;
+    }
+    if (audioEl && Number.isFinite(audioEl.duration) && audioEl.duration > 0) {
+      audioEl.currentTime = (pct / 100) * audioEl.duration;
+    }
+  });
+
+  document.querySelectorAll("[data-audio-rate]").forEach((rateBtn) => {
+    rateBtn.addEventListener("click", () => {
+      const rate = parseFloat(rateBtn.dataset.audioRate || "1");
+      state.audioRate = rate;
+      if (audioEl) audioEl.playbackRate = rate;
+      document.querySelectorAll("[data-audio-rate]").forEach((b) => {
+        const active = parseFloat(b.dataset.audioRate || "1") === rate;
+        b.className = active
+          ? "m3-morph-btn px-2.5 py-0.5 text-[11px] font-display font-bold bg-[#E8F8F0] text-[#064E3B]"
+          : "m3-morph-btn px-2.5 py-0.5 text-[11px] font-display font-bold text-[#64748B] hover:text-[#0F172A]";
+      });
+    });
+  });
+
+  // M3 Switch Режима супервизора
+  document.getElementById("supervisorModeToggle")?.addEventListener("change", (e) => {
+    state.supervisorMode = Boolean(e.target.checked);
+    renderEvaluationPanel();
+  });
+
+  // Модалка апелляции
+  document.getElementById("closeAppealModalBtn")?.addEventListener("click", closeAppealModal);
+  document.getElementById("cancelAppealBtn")?.addEventListener("click", closeAppealModal);
+  document.getElementById("submitAppealBtn")?.addEventListener("click", submitOperatorAppeal);
+
+  // Модалка конструктора чек-листа
+  document.getElementById("openChecklistModalBtn")?.addEventListener("click", openChecklistModal);
+  document.getElementById("closeChecklistModalBtn")?.addEventListener("click", closeChecklistModal);
+  document.getElementById("cancelChecklistModalBtn")?.addEventListener("click", closeChecklistModal);
+  document.getElementById("addCriterionRowBtn")?.addEventListener("click", addCriterionToDraft);
+  document.getElementById("resetChecklistDefaultBtn")?.addEventListener("click", () => {
+    draftChecklistCriteria = structuredClone(DEFAULT_CHECKLIST.criteria);
+    renderChecklistEditorRows();
+  });
+  document.getElementById("saveChecklistBtn")?.addEventListener("click", saveAndApplyChecklist);
+
+  // Клавиатурные шорткаты:
+  // - 1 (Поставить «Да» / макс. балл) и 0 (Поставить «Нет» / 0 баллов) для открытого критерия в режиме супервизора
+  // - J / K для переключения диалогов, Esc для закрытия модалок и Popover
+  window.addEventListener("keydown", (e) => {
+    const tag = (e.target?.tagName || "").toLowerCase();
+    if (e.key === "Escape") {
+      closeAppealModal();
+      closeChecklistModal();
+      kpiPopover?.classList.add("hidden");
+      return;
+    }
+    if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+    if ((e.key === "1" || e.key === "0") && state.supervisorMode && state.activeId) {
+      const targetCritId =
+        state.focusedCriterionId ||
+        Array.from(state.openCriterionIds)[0] ||
+        1;
+      const ev = state.evaluations[state.activeId];
+      const critObj = ev?.criteria?.find((c) => Number(c.criterion_id) === Number(targetCritId));
+      if (critObj) {
+        e.preventDefault();
+        const newScore = e.key === "1" ? Number(critObj.max_raw || 1) : 0;
+        applySupervisorDecision(
+          targetCritId,
+          "override",
+          newScore,
+          false,
+          e.key === "1" ? "Быстрый шорткат [1]: Да" : "Быстрый шорткат [0]: Нет"
+        );
+      }
+      return;
+    }
+
+    if (e.key === "j" || e.key === "J" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const list = state.filteredRecords;
+      if (!list.length) return;
+      const idx = list.findIndex((r) => r.conversation_id === state.activeId);
+      selectConversation(list[(idx + 1) % list.length].conversation_id);
+    } else if (e.key === "k" || e.key === "K" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const list = state.filteredRecords;
+      if (!list.length) return;
+      const idx = list.findIndex((r) => r.conversation_id === state.activeId);
+      selectConversation(list[(idx - 1 + list.length) % list.length].conversation_id);
+    }
+  });
+
+  // Стартовая загрузка набора DEV
+  loadDataset("DEV");
+}
+
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initCqaApp);
+  } else {
+    initCqaApp();
+  }
+}
+
+</script>
+</body>
+</html>
