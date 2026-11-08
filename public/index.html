@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="referrer" content="no-referrer" />
   <title>Freedom Finance — CQA</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -93,22 +92,37 @@ body {
   box-shadow: var(--m3-ambient-shadow);
 }
 
-/* 3.1. Shape-Morphing кнопок при нажатии (:active меняет радиус с 9999px на 16px со сжатием scale(0.97)) */
+/* 3.1. Material You Shape-Morphing: в покое круглые (pill), при нажатии/активности - мягкий прямоугольник */
 .m3-morph-btn {
   border-radius: 9999px;
   transition:
-    transform 0.38s var(--spring-bounce),
-    border-radius 0.32s var(--spring-bounce),
+    border-radius 0.22s cubic-bezier(0.2, 0, 0, 1),
+    transform 0.14s cubic-bezier(0.2, 0, 0, 1),
     background-color 0.2s ease,
-    box-shadow 0.25s var(--spring-smooth),
+    box-shadow 0.2s ease,
     color 0.2s ease;
   cursor: pointer;
   user-select: none;
 }
 
-.m3-morph-btn:active {
-  transform: scale(0.97) !important;
-  border-radius: 16px !important;
+.m3-morph-btn:active,
+.m3-morph-btn.is-active {
+  border-radius: 12px !important;
+  transform: scale(0.98);
+}
+
+.m3-filter-chip {
+  border-radius: 9999px;
+  transition:
+    border-radius 0.22s cubic-bezier(0.2, 0, 0, 1),
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.14s ease;
+}
+
+.m3-filter-chip.m3-filter-chip-active,
+.m3-filter-chip:active {
+  border-radius: 12px !important;
 }
 
 /* Компактный объединенный M3 Segmented Bar (DEV / TEST + ввод group_id) */
@@ -258,116 +272,69 @@ body {
   transform: scaleY(1);
 }
 
-/* 3.2. Червякообразный ползунок аудиоплеера (Wavy / Worm Slider) */
-input[type="range"].m3-worm-slider {
-  --progress: 35%;
-  -webkit-appearance: none;
-  appearance: none;
+/* 3.2. Червякообразный ползунок аудиоплеера Material You Expressive (Sinusoidal Squiggly Worm) */
+.m3-worm-track-wrap {
+  position: relative;
   width: 100%;
-  height: 8px;
-  border-radius: 9999px;
-  background: linear-gradient(
-    90deg,
-    #00A35B 0%,
-    #10B981 var(--progress),
-    #E2E8F0 var(--progress),
-    #E2E8F0 100%
-  );
-  outline: none;
-  cursor: pointer;
-  transition: height 0.25s var(--spring-bounce);
+  height: 24px;
+  display: flex;
+  align-items: center;
+  user-select: none;
 }
 
-input[type="range"].m3-worm-slider::-webkit-slider-thumb {
+.m3-worm-svg {
+  width: 100%;
+  height: 24px;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+input[type="range"].m3-worm-slider {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 9999px;
-  background: var(--freedom-primary);
-  border: 2.5px solid #FFFFFF;
-  box-shadow: 0 2px 8px rgba(0, 163, 91, 0.42);
-  cursor: grab;
-  transition:
-    width 0.32s var(--spring-bounce),
-    height 0.32s var(--spring-bounce),
-    border-radius 0.32s var(--spring-bounce),
-    transform 0.32s var(--spring-bounce),
-    background-color 0.2s ease;
-}
-
-/* Эффект эластичной капли / червяка при удержании и перетаскивании */
-input[type="range"].m3-worm-slider:active::-webkit-slider-thumb,
-input[type="range"].m3-worm-slider.is-dragging::-webkit-slider-thumb {
-  width: 24px;
-  height: 12px;
-  border-radius: 9999px;
-  background: #064E3B;
-  cursor: grabbing;
-}
-
-input[type="range"].m3-worm-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 9999px;
-  background: var(--freedom-primary);
-  border: 2.5px solid #FFFFFF;
-  box-shadow: 0 2px 8px rgba(0, 163, 91, 0.42);
-  cursor: grab;
-  transition: width 0.32s var(--spring-bounce), height 0.32s var(--spring-bounce);
-}
-
-input[type="range"].m3-worm-slider:active::-moz-range-thumb {
-  width: 24px;
-  height: 12px;
-  border-radius: 9999px;
 }
 
 /* Каскадное появление реплик чата */
 @keyframes bubbleSpringPop {
   0% {
     opacity: 0;
-    transform: translateY(12px) scale(0.97);
-  }
-  70% {
-    opacity: 1;
-    transform: translateY(-2px) scale(1.005);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 .chat-bubble-stagger {
-  animation: bubbleSpringPop 0.44s var(--spring-bounce) both;
+  animation: bubbleSpringPop 0.24s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
-/* Двухэтапный импульс доказательства — Freedom Evidence Pulse */
-@keyframes freedomEvidencePulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(0, 163, 91, 0);
-  }
-  28% {
-    transform: scale(1.025);
-    box-shadow: 0 0 0 8px rgba(0, 163, 91, 0.15);
-    background-color: var(--freedom-container);
-  }
-  65% {
-    transform: scale(1.025);
-    box-shadow: 0 0 0 10px rgba(0, 163, 91, 0.11);
-    background-color: var(--freedom-container);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(0, 163, 91, 0);
-  }
+/* Плавная подсветка активной реплики в стилистике Material You Expressive */
+[data-line-index] {
+  border-left: 3.5px solid transparent;
+  border-radius: 16px;
+  transition:
+    background-color 0.28s cubic-bezier(0.2, 0, 0, 1),
+    border-color 0.28s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.28s cubic-bezier(0.2, 0, 0, 1),
+    transform 0.28s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .freedom-pulse {
-  animation: freedomEvidencePulse 2s var(--spring-bounce) 1 forwards;
-  border-radius: 24px;
+  background-color: rgba(0, 163, 91, 0.10) !important;
+  border-left-color: #00A35B !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 14px -4px rgba(0, 163, 91, 0.18) !important;
 }
 
 /* Разделитель превышения SLA (тонкая линия с центрированным M3 Assist Chip) */
@@ -542,8 +509,8 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
 </head>
 <body class="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] max-w-full overflow-x-hidden selection:bg-[#E8F8F0] selection:text-[#064E3B]">
 
-  <!-- 1. TOP APP BAR: 64PX, ЧИСТЫЙ #FFFFFF, 100% ШИРИНЫ БЕЗ ГОРИЗОНТАЛЬНОГО ПЕРЕПОЛНЕНИЯ -->
-  <header class="h-16 w-full max-w-full overflow-hidden bg-[#FFFFFF] border-b border-slate-200/80 px-5 sticky top-0 z-30 flex items-center justify-between gap-3">
+  <!-- 1. TOP APP BAR: 64PX, ЧИСТЫЙ #FFFFFF, 100% ШИРИНЫ, OVERFLOW-VISIBLE ДЛЯ МЕНЮ НАСТРОЕК -->
+  <header class="h-16 w-full max-w-full overflow-visible bg-[#FFFFFF] border-b border-slate-200/80 px-5 sticky top-0 z-40 flex items-center justify-between gap-3">
     <!-- Слева: Акцентный логотип Freedom высотой 36px (h-9) без разделителей и лишних бейджей -->
     <div class="flex items-center shrink-0">
       <img
@@ -553,13 +520,13 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
       />
     </div>
 
-    <!-- По центру: Единый компактный M3 Segmented Bar (DEV (65) / TEST (10) + ввод group_id) -->
+    <!-- По центру: Единый компактный M3 Segmented Bar (DEV (65) / PROD (10) + ввод group_id) -->
     <div class="m3-unified-segmented shrink-0" id="datasetSegmentedControl">
       <button type="button" data-segment-group="DEV" class="m3-seg-pill is-active">
         DEV <span id="segDevCount" class="opacity-75">(65)</span>
       </button>
-      <button type="button" data-segment-group="TEST" class="m3-seg-pill">
-        TEST <span id="segTestCount" class="opacity-75">(10)</span>
+      <button type="button" data-segment-group="PROD" class="m3-seg-pill">
+        PROD <span id="segProdCount" class="opacity-75">(10)</span>
       </button>
       <div class="hidden sm:flex items-center pl-2 pr-1 border-l border-slate-200/90 gap-1">
         <input
@@ -579,54 +546,116 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
       </div>
     </div>
 
-    <!-- Справа: Компактный кликабельный KPI-чипс с Popover + Кнопка «Конструктор чек-листа» -->
+    <!-- Справа: Оценить все, Чек-лист и компактное меню Настройки -->
     <div class="flex items-center gap-2 shrink-0">
-      <button
-        id="kpiPopoverTriggerBtn"
-        type="button"
-        class="m3-morph-btn inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#F1F5F9] hover:bg-slate-200/80 border border-slate-200/80 text-xs font-semibold text-[#0F172A]"
-        title="Нажмите для просмотра технической телеметрии и формулы"
-      >
-        <span class="w-2 h-2 rounded-full bg-[#00A35B]"></span>
-        <span class="font-display font-extrabold text-[#00A35B]" id="statAverageScore">86.4</span>
-        <span class="text-[#64748B]">/ 100</span>
-        <span class="text-slate-300">·</span>
-        <span class="font-display font-bold text-[#334155]">$0.0031</span>
-      </button>
-
-      <button
-        id="openApiKeyModalBtn"
-        type="button"
-        class="m3-morph-btn inline-flex items-center gap-2 px-3.5 py-2 bg-[#F1F5F9] hover:bg-slate-200/80 border border-slate-200/80 text-[#0F172A] text-xs font-bold whitespace-nowrap"
-        title="Настроить API-ключ и модель ИИ (Gemini / OpenAI / Ollama)"
-      >
-        <span id="apiKeyStatusDot" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
-        <svg class="w-3.5 h-3.5 text-[#00A35B] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" />
-          <path d="m21 2-9.6 9.6" />
-          <circle cx="7.5" cy="15.5" r="5.5" />
-        </svg>
-        <span id="apiKeyBtnLabel">API ключ</span>
-      </button>
-
       <button
         id="evaluateAllBtn"
         type="button"
-        class="m3-morph-btn hidden xl:inline-flex items-center px-3.5 py-2 bg-[#F1F5F9] hover:bg-slate-200/80 text-[#334155] text-xs font-bold"
+        class="m3-morph-btn inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#F1F5F9] hover:bg-slate-200/80 text-[#0F172A] text-xs font-bold"
       >
-        Оценить весь набор
+        <svg class="w-3.5 h-3.5 text-[#00A35B] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+        <span>Оценить все</span>
       </button>
 
       <button
         id="openChecklistModalBtn"
         type="button"
-        class="m3-morph-btn inline-flex items-center gap-2 px-4 py-2 bg-[#00A35B] hover:bg-[#008A4C] text-white text-xs font-bold shadow-sm whitespace-nowrap"
+        class="m3-morph-btn inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#00A35B] hover:bg-[#008A4C] text-white text-xs font-bold shadow-sm whitespace-nowrap"
       >
         <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
         </svg>
-        <span>Конструктор чек-листа</span>
+        <span>Чек-лист</span>
       </button>
+
+      <!-- Меню Настройки: группировка Телеметрии, API ключа и экспорта results.json -->
+      <div class="relative inline-block text-left">
+        <button
+          id="settingsMenuTriggerBtn"
+          type="button"
+          class="m3-morph-btn inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#F1F5F9] hover:bg-slate-200/80 border border-slate-200/80 text-[#0F172A] text-xs font-bold whitespace-nowrap cursor-pointer select-none"
+          title="Настройки, экспорт results.json и телеметрия"
+        >
+          <svg class="w-3.5 h-3.5 text-[#334155] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          <span>Настройки</span>
+          <svg class="w-3 h-3 text-[#64748B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        <!-- Dropdown меню Настройки -->
+        <div id="settingsDropdownMenu" class="hidden absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-1.5 z-50">
+          <button
+            id="downloadResultsJsonBtn"
+            type="button"
+            class="w-full text-left px-3.5 py-2 hover:bg-[#F8FAFC] flex items-center gap-2.5 text-xs text-[#0F172A] transition-colors"
+          >
+            <svg class="w-4 h-4 text-[#00A35B] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <div>
+              <div class="font-bold text-[#0F172A]">Скачать results.json</div>
+              <div class="text-[10px] text-[#64748B]">Формат хакатона для Git</div>
+            </div>
+          </button>
+
+          <button
+            id="uploadDatasetJsonBtn"
+            type="button"
+            class="w-full text-left px-3.5 py-2 hover:bg-[#F8FAFC] flex items-center gap-2.5 text-xs text-[#0F172A] transition-colors border-t border-slate-100"
+          >
+            <svg class="w-4 h-4 text-[#00A35B] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <div>
+              <div class="font-bold text-[#0F172A]">Загрузить JSON с диска</div>
+              <div class="text-[10px] text-[#64748B]">Импорт нового датасета (PROD)</div>
+            </div>
+          </button>
+          <input type="file" id="datasetFileInput" accept=".json" class="hidden" />
+
+          <button
+            id="openApiKeyModalBtn"
+            type="button"
+            class="w-full text-left px-3.5 py-2 hover:bg-[#F8FAFC] flex items-center gap-2.5 text-xs text-[#0F172A] transition-colors border-t border-slate-100"
+          >
+            <svg class="w-4 h-4 text-[#334155] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" />
+              <path d="m21 2-9.6 9.6" />
+              <circle cx="7.5" cy="15.5" r="5.5" />
+            </svg>
+            <div>
+              <div class="font-bold text-[#0F172A]" id="apiKeyBtnLabel">API ключ</div>
+              <div class="text-[10px] text-[#64748B]">Gemini / OpenAI / Ollama</div>
+            </div>
+          </button>
+
+          <button
+            id="kpiPopoverTriggerBtn"
+            type="button"
+            class="w-full text-left px-3.5 py-2 hover:bg-[#F8FAFC] flex items-center gap-2.5 text-xs text-[#0F172A] transition-colors border-t border-slate-100"
+          >
+            <svg class="w-4 h-4 text-[#334155] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            <div>
+              <div class="font-bold text-[#0F172A]">Телеметрия CQA</div>
+              <div class="text-[10px] text-[#64748B]">Балл: <span id="statAverageScore">86.4</span> / 100</div>
+            </div>
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -698,7 +727,7 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
             <span id="chipCountAll" class="font-display text-[11px] font-bold opacity-80">3</span>
           </button>
           <button type="button" data-chip-filter="VOICE" class="m3-filter-chip whitespace-nowrap px-3.5">
-            <span>🔊 Звонки</span>
+            <span>Звонки</span>
             <span id="chipCountVoice" class="font-display text-[11px] font-bold opacity-75">0</span>
           </button>
           <button type="button" data-chip-filter="RU" class="m3-filter-chip whitespace-nowrap px-3.5">
@@ -778,7 +807,7 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
           <div class="flex-1 min-w-0 space-y-1.5">
             <div class="flex items-center justify-between gap-2 text-[11px]">
               <div class="flex items-center gap-2 min-w-0">
-                <span id="audioUrlLabel" class="font-semibold text-[#334155] truncate">Запись телефонной линии</span>
+                <span id="audioUrlLabel" class="font-bold text-[#334155] truncate">Запись телефонной линии</span>
                 <a
                   id="audioExternalLink"
                   href="#"
@@ -787,31 +816,42 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
                   class="hidden text-[10px] font-bold text-[#00A35B] hover:underline shrink-0"
                   title="Открыть прямой источник записи"
                 >
-                  Источник ↗
+                  Источник
                 </a>
               </div>
-              <span id="customAudioTimeLabel" class="font-display font-bold text-[#0F172A] shrink-0">00:00 / 00:00</span>
+              <span id="customAudioTimeLabel" class="font-display font-extrabold text-[#0F172A] shrink-0">00:00 / 00:00</span>
             </div>
-            <input
-              id="customAudioSeekSlider"
-              type="range"
-              min="0"
-              max="100"
-              step="0.2"
-              value="0"
-              style="--progress: 0%"
-              aria-label="Позиция аудиозаписи"
-              class="m3-worm-slider"
-            />
+            <div id="m3WormTrackWrap" class="m3-worm-track-wrap">
+              <svg id="m3WormSvg" class="m3-worm-svg" viewBox="0 0 360 24" preserveAspectRatio="none" aria-hidden="true">
+                <line id="m3WormInactiveLine" x1="8" y1="12" x2="358" y2="12" stroke="#CBD5E1" stroke-width="4" stroke-linecap="round" />
+                <path id="m3WormActivePath" d="M 2 12 L 2 12" fill="none" stroke="#00A35B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                <rect id="m3WormThumbRect" x="0" y="4" width="6" height="16" rx="3" fill="#00A35B" />
+              </svg>
+              <input
+                id="customAudioSeekSlider"
+                type="range"
+                min="0"
+                max="100"
+                step="0.1"
+                value="0"
+                style="--progress: 0%"
+                aria-label="Позиция аудиозаписи"
+                class="m3-worm-slider"
+              />
+            </div>
           </div>
 
           <button
             id="audioTtsToggleBtn"
             type="button"
             title="Голосовая озвучка реплик (Web Speech TTS)"
-            class="m3-morph-btn px-2.5 py-1 text-[11px] font-bold bg-[#E8F8F0] text-[#064E3B] border border-[#00A35B]/25 shrink-0"
+            class="m3-morph-btn px-2.5 py-1 text-[11px] font-bold bg-[#E8F8F0] text-[#064E3B] border border-[#00A35B]/25 shrink-0 inline-flex items-center gap-1"
           >
-            🔊 TTS
+            <svg class="w-3.5 h-3.5 text-[#00A35B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+            <span>TTS</span>
           </button>
 
           <div class="flex items-center gap-1 bg-white border border-slate-200/80 rounded-full p-1 shrink-0">
@@ -827,7 +867,6 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
           </div>
         </div>
         <audio id="callAudioPlayer" preload="metadata" class="hidden"></audio>
-        <audio id="ttsVoicePlayer" preload="auto" class="hidden"></audio>
       </div>
 
       <!-- Лента сообщений (Chat Feed) -->
@@ -1091,7 +1130,7 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
         <!-- Статус текущего движка и ключа -->
         <div class="flex flex-wrap items-center justify-between gap-2 bg-[#F8FAFC] border border-slate-200/80 rounded-2xl px-4 py-3">
           <div class="flex items-center gap-2 min-w-0">
-            <span id="llmModalStatusDot" class="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
+            <span id="llmModalStatusDot" class="hidden"></span>
             <span id="llmModalStatusBadge" class="text-xs font-bold text-[#0F172A] truncate">
               Встроенный гибридный движок (без внешнего API)
             </span>
@@ -1314,7 +1353,7 @@ const state = {
   evaluations: {},
   llmConfig: {
     provider: "builtin",
-    model: "gemini-flash-latest",
+    model: "gemini-flash-lite-latest",
     base_url: "",
     has_api_key: false,
     api_key_masked: "",
@@ -1331,17 +1370,12 @@ const state = {
   audioSourceKind: "synthesized",
   lastSpokenTurnIdx: -1,
   pendingAudioSeekSec: null,
+  wormAnimRaf: null,
+  wormPhase: 0,
+  wormAmp: 0,
   clientWavUrls: {},
   resolvedRealAudioUrls: {},
-  unwrapInFlight: {},
-  realAudioCanPlay: false,
-  ttsSequencerActive: false,
-  ttsSequencerPaused: false,
-  ttsCurrentTurnIdx: 0,
-  ttsCurrentChunkIdx: 0,
-  ttsCurrentUrlCandidateIdx: 0,
-  ttsChunksQueue: [],
-  ttsNextTurnTimer: null
+  unwrapInFlight: {}
 };
 
 async function apiRequest(endpoint, options = {}) {
@@ -2078,18 +2112,275 @@ function scrollToTranscriptLine(lineIndex) {
   }
 }
 
+function ensureTranscriptAudioOffsets(rec) {
+  const transcript = rec?.transcript;
+  if (!Array.isArray(transcript) || !transcript.length) return;
+  if (rec.__audioOffsetsComputed) return;
+
+  // Check if backend already enriched with end_offset_seconds
+  if (typeof transcript[0]?.end_offset_seconds === "number") {
+    rec.__audioOffsetsComputed = true;
+    return;
+  }
+
+  let baseEpochSec = null;
+  let hasIso = false;
+  for (let i = 0; i < transcript.length; i++) {
+    const raw = String(transcript[i]?.timestamp || "").trim();
+    if (raw.includes("T")) {
+      const parsed = parseTimestampToSeconds(raw);
+      if (parsed !== null) {
+        baseEpochSec = parsed;
+        hasIso = true;
+        break;
+      }
+    }
+  }
+
+  const wallSecs = transcript.map((t, idx) => {
+    const raw = String(t?.timestamp || "").trim();
+    const parsed = parseTimestampToSeconds(raw);
+    if (parsed === null) return idx * 4;
+    if (hasIso && baseEpochSec !== null && parsed >= baseEpochSec) {
+      return Math.max(0, Number((parsed - baseEpochSec).toFixed(1)));
+    }
+    return Math.max(0, parsed);
+  });
+
+  if (!hasIso) {
+    transcript.forEach((t, idx) => {
+      t.offset_seconds = wallSecs[idx];
+      t.end_offset_seconds = wallSecs[idx];
+    });
+    rec.__audioOffsetsComputed = true;
+    return;
+  }
+
+  // 1. Pre-recording start offset ('Запись и транскрибирование запущены')
+  let recStartWall = 0;
+  for (let i = 0; i < transcript.length; i++) {
+    const sp = String(transcript[i]?.speaker || "").toLowerCase();
+    const txt = String(transcript[i]?.text || "").toLowerCase();
+    if (
+      sp === "system" &&
+      (txt.includes("запись и транскрибирование запущены") ||
+        txt.includes("жазу және транскрипция басталды")) &&
+      wallSecs[i] <= 60
+    ) {
+      recStartWall = wallSecs[i];
+      break;
+    }
+  }
+
+  // 2. Recording pause compression ('приостановлены' -> 'возобновлены')
+  const pauses = [];
+  let pauseStart = null;
+  for (let i = 0; i < transcript.length; i++) {
+    const sp = String(transcript[i]?.speaker || "").toLowerCase();
+    const txt = String(transcript[i]?.text || "").toLowerCase();
+    if (sp === "system") {
+      if (txt.includes("приостановлены") || txt.includes("уақытша тоқтатылды")) {
+        pauseStart = wallSecs[i];
+      } else if (
+        (txt.includes("возобновлены") || txt.includes("қайта жалғастырылды")) &&
+        pauseStart !== null
+      ) {
+        const pEnd = wallSecs[i];
+        if (pEnd > pauseStart) {
+          pauses.push({ start: pauseStart, end: pEnd, cut: Math.max(0, pEnd - pauseStart - 6.6) });
+        }
+        pauseStart = null;
+      }
+    }
+  }
+
+  const wallToCommitSec = (wSec) => {
+    if (wSec <= recStartWall) return 0;
+    let tVal = wSec - recStartWall;
+    let cutAccum = 0;
+    for (const p of pauses) {
+      if (wSec <= p.start) break;
+      if (wSec >= p.end) cutAccum += p.cut;
+      else cutAccum += p.cut * ((wSec - p.start) / Math.max(0.1, p.end - p.start));
+    }
+    return Math.max(0, tVal - cutAccum);
+  };
+
+  const commitSecs = wallSecs.map(wallToCommitSec);
+
+  // 3. Map ASR endpoint commit time to utterance start time
+  for (let idx = 0; idx < transcript.length; idx++) {
+    const t = transcript[idx];
+    const sp = String(t?.speaker || "").toLowerCase();
+    const txt = String(t?.text || "").trim();
+    const cSec = commitSecs[idx];
+    let startSec = cSec;
+
+    if (sp !== "system") {
+      if (txt.length <= 2 && /^\d+$/.test(txt)) {
+        startSec = Math.max(0, cSec - 0.5);
+      } else {
+        let prevEnd = 0;
+        for (let j = idx - 1; j >= 0; j--) {
+          const prevSp = String(transcript[j]?.speaker || "").toLowerCase();
+          const prevTxt = String(transcript[j]?.text || "").trim();
+          if (sp === "bot" && prevSp === "client" && prevTxt.length <= 2 && /^\d+$/.test(prevTxt)) {
+            continue;
+          }
+          prevEnd = commitSecs[j];
+          break;
+        }
+        const gap = Math.max(0, cSec - prevEnd);
+        let estDur = Math.max(1.0, txt.length / 13.0);
+        if (sp === "bot" && idx > 0) {
+          const immPrev = String(transcript[idx - 1]?.text || "").trim();
+          if (immPrev.length <= 2 && /^\d+$/.test(immPrev)) {
+            estDur = gap;
+          }
+        }
+        const dur = gap > 0 ? Math.min(gap, estDur + 0.6) : 0;
+        startSec = Math.max(prevEnd, cSec - dur);
+      }
+    }
+
+    t.offset_seconds = Number(startSec.toFixed(1));
+    t.end_offset_seconds = Number(Math.max(startSec + 0.6, cSec).toFixed(1));
+  }
+  rec.__audioOffsetsComputed = true;
+}
+
 function getTurnOffsetSeconds(rec, turn, idx = 0) {
+  if (rec) ensureTranscriptAudioOffsets(rec);
   if (turn && typeof turn.offset_seconds === "number" && Number.isFinite(turn.offset_seconds)) {
     return Math.max(0, turn.offset_seconds);
   }
   const rawSec = parseTimestampToSeconds(String(turn?.timestamp || ""));
-  if (rawSec === null) return idx * 4;
-  const firstTurn = rec?.transcript?.[0];
-  const firstSec = firstTurn ? parseTimestampToSeconds(String(firstTurn.timestamp || "")) : 0;
-  if (firstSec !== null && rawSec >= firstSec && (firstSec > 3600 || String(turn?.timestamp || "").includes("T"))) {
-    return Math.max(0, Number((rawSec - firstSec).toFixed(1)));
+  return rawSec !== null ? Math.max(0, rawSec) : idx * 4;
+}
+
+function getTurnEndOffsetSeconds(rec, turn, idx = 0) {
+  if (rec) ensureTranscriptAudioOffsets(rec);
+  if (turn && typeof turn.end_offset_seconds === "number" && Number.isFinite(turn.end_offset_seconds)) {
+    return Math.max(0, turn.end_offset_seconds);
   }
-  return Math.max(0, rawSec);
+  const startSec = getTurnOffsetSeconds(rec, turn, idx);
+  const nextTurn = rec?.transcript?.[idx + 1];
+  if (nextTurn) {
+    return Math.max(startSec + 0.8, getTurnOffsetSeconds(rec, nextTurn, idx + 1));
+  }
+  return startSec + 4.0;
+}
+
+function renderM3WormWave(pctValue = null) {
+  const wrap = document.getElementById("m3WormTrackWrap");
+  const svg = document.getElementById("m3WormSvg");
+  const activePath = document.getElementById("m3WormActivePath");
+  const inactiveLine = document.getElementById("m3WormInactiveLine");
+  const thumbRect = document.getElementById("m3WormThumbRect");
+  const sliderEl = document.getElementById("customAudioSeekSlider");
+  if (!wrap || !svg || !activePath || !inactiveLine || !thumbRect) return;
+
+  const width = Math.max(120, Math.round(wrap.getBoundingClientRect().width || 360));
+  const height = 24;
+  const centerY = 12;
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  const pct =
+    pctValue !== null && Number.isFinite(pctValue)
+      ? Math.min(100, Math.max(0, pctValue))
+      : Math.min(100, Math.max(0, Number(sliderEl?.value || 0)));
+
+  const isDragging = Boolean(sliderEl?.classList.contains("is-dragging"));
+  const thumbW = isDragging ? 10 : 6;
+  const thumbH = isDragging ? 18 : 16;
+  const pad = 4;
+  const thumbX = pad + ((width - pad * 2) * pct) / 100;
+
+  thumbRect.setAttribute("x", (thumbX - thumbW / 2).toFixed(1));
+  thumbRect.setAttribute("y", (centerY - thumbH / 2).toFixed(1));
+  thumbRect.setAttribute("width", String(thumbW));
+  thumbRect.setAttribute("height", String(thumbH));
+  thumbRect.setAttribute("rx", isDragging ? "4" : "3");
+
+  const inactiveStart = Math.min(width - 2, thumbX + thumbW / 2 + 4);
+  inactiveLine.setAttribute("x1", inactiveStart.toFixed(1));
+  inactiveLine.setAttribute("y1", String(centerY));
+  inactiveLine.setAttribute("x2", String(width - 2));
+  inactiveLine.setAttribute("y2", String(centerY));
+  inactiveLine.setAttribute("opacity", inactiveStart >= width - 4 ? "0" : "1");
+
+  const waveEnd = Math.max(2, thumbX - thumbW / 2 - 3);
+  if (waveEnd <= 4) {
+    activePath.setAttribute("d", `M 2 ${centerY} L ${waveEnd.toFixed(1)} ${centerY}`);
+    return;
+  }
+
+  const amp = state.wormAmp || 0;
+  if (amp < 0.15) {
+    activePath.setAttribute("d", `M 2 ${centerY} L ${waveEnd.toFixed(1)} ${centerY}`);
+    return;
+  }
+
+  const wavelength = 22;
+  const k = (2 * Math.PI) / wavelength;
+  const phase = state.wormPhase || 0;
+  const step = 2.5;
+  let d = `M 2 ${centerY.toFixed(2)}`;
+  for (let x = 2 + step; x < waveEnd; x += step) {
+    const edgeDist = Math.min(x - 2, waveEnd - x);
+    const taper = Math.min(1, edgeDist / 10);
+    const y = centerY + amp * taper * Math.sin(k * x - phase);
+    d += ` L ${x.toFixed(1)} ${y.toFixed(2)}`;
+  }
+  d += ` L ${waveEnd.toFixed(1)} ${centerY.toFixed(2)}`;
+  activePath.setAttribute("d", d);
+}
+
+function startWormAnimationLoop() {
+  if (state.wormAnimRaf) return;
+  let lastTs = performance.now();
+  const tick = (now) => {
+    const dt = Math.min(0.06, Math.max(0.001, (now - lastTs) / 1000));
+    lastTs = now;
+    const audioEl = document.getElementById("callAudioPlayer");
+    const sliderEl = document.getElementById("customAudioSeekSlider");
+    const timeLabel = document.getElementById("customAudioTimeLabel");
+    const isPlaying = Boolean(audioEl && !audioEl.paused && !audioEl.ended);
+
+    const targetAmp = isPlaying ? 4.2 : 0;
+    state.wormAmp += (targetAmp - state.wormAmp) * Math.min(1, dt * 12);
+    if (isPlaying) {
+      state.wormPhase = (state.wormPhase + dt * 6.2 * (state.audioRate || 1.0)) % (Math.PI * 200);
+      if (sliderEl && !sliderEl.classList.contains("is-dragging")) {
+        const rec = state.records.find((r) => r.conversation_id === state.activeId);
+        const ev = rec ? state.evaluations[rec.conversation_id] : null;
+        const totalSec = getActiveTotalDurationSeconds(rec, ev);
+        const curSec = audioEl.currentTime || 0;
+        const pct = totalSec > 0 ? Math.min(100, Math.max(0, (curSec / totalSec) * 100)) : 0;
+        sliderEl.value = String(pct.toFixed(2));
+        sliderEl.style.setProperty("--progress", `${pct.toFixed(2)}%`);
+        if (timeLabel) {
+          timeLabel.textContent = `${formatMmSs(curSec)} / ${formatMmSs(totalSec)}`;
+        }
+        speakTranscriptTurnIfNeeded(curSec);
+      }
+    }
+
+    renderM3WormWave();
+
+    if (isPlaying || state.wormAmp > 0.08) {
+      state.wormAnimRaf = requestAnimationFrame(tick);
+    } else {
+      state.wormAmp = 0;
+      renderM3WormWave();
+      state.wormAnimRaf = null;
+    }
+  };
+  state.wormAnimRaf = requestAnimationFrame(tick);
+}
+
+function stopWormAnimationLoop() {
+  startWormAnimationLoop();
 }
 
 function getActiveTotalDurationSeconds(rec, ev) {
@@ -2328,127 +2619,8 @@ function updateAudioPlayButtonIcon(isPlaying) {
   }
 }
 
-const KAZAKH_CYRILLIC_TTS_MAP = {
-  "ә": "а", "Ә": "А",
-  "і": "и", "І": "И",
-  "ң": "н", "Ң": "Н",
-  "ғ": "г", "Ғ": "Г",
-  "ү": "у", "Ү": "У",
-  "ұ": "у", "Ұ": "У",
-  "қ": "к", "Қ": "К",
-  "ө": "о", "Ө": "О",
-  "һ": "х", "Һ": "Х"
-};
-
-function normalizeTextForTts(rawText) {
-  let text = String(rawText || "")
-    .replace(/\[Имя скрыто\]/gi, "Клиент")
-    .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  let out = "";
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    out += KAZAKH_CYRILLIC_TTS_MAP[ch] || ch;
-  }
-  return out;
-}
-
-function splitTextIntoTtsChunks(text, maxLen = 155) {
-  const clean = String(text || "").trim();
-  if (!clean) return [];
-  if (clean.length <= maxLen) return [clean];
-
-  const sentences = clean.split(/(?<=[.!?।;])\s+/);
-  const chunks = [];
-  let current = "";
-
-  for (const sent of sentences) {
-    if (!sent) continue;
-    if ((current + " " + sent).trim().length <= maxLen) {
-      current = (current + " " + sent).trim();
-    } else {
-      if (current) chunks.push(current);
-      if (sent.length <= maxLen) {
-        current = sent;
-      } else {
-        const words = sent.split(/\s+/);
-        current = "";
-        for (const w of words) {
-          if ((current + " " + w).trim().length <= maxLen) {
-            current = (current + " " + w).trim();
-          } else {
-            if (current) chunks.push(current);
-            current = w.slice(0, maxLen);
-          }
-        }
-      }
-    }
-  }
-  if (current) chunks.push(current);
-  return chunks.length ? chunks : [clean.slice(0, maxLen)];
-}
-
-function buildTtsUrlsForChunk(chunk, langCode) {
-  const isEn = String(langCode || "").toUpperCase() === "EN";
-  const tl = isEn ? "en" : "ru";
-  const q = encodeURIComponent(chunk);
-  return [
-    `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=${tl}&q=${q}`,
-    `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${q}`,
-    `https://dict.youdao.com/dictvoice?audio=${q}&le=${isEn ? "eng" : "ru"}`,
-    `/api/tts?lang=${tl}&text=${q}`
-  ];
-}
-
-function findFirstSpokenTurnIdx(transcript, fromIdx = 0) {
-  if (!Array.isArray(transcript) || !transcript.length) return -1;
-  for (let i = Math.max(0, fromIdx); i < transcript.length; i++) {
-    const sp = String(transcript[i]?.speaker || "").toLowerCase();
-    const txt = normalizeTextForTts(transcript[i]?.text || "");
-    if (sp !== "system" && txt.length > 0) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-function getSpeakerTtsPlaybackRate(speaker) {
-  const baseRate = state.audioRate || 1.0;
-  const role = String(speaker || "").toLowerCase();
-  const mult = role === "client" ? 0.98 : role === "bot" ? 1.1 : 1.04;
-  return Math.min(2.0, Math.max(0.75, Number((baseRate * mult).toFixed(2))));
-}
-
-function restoreDefaultAudioLabel(rec) {
-  const labelEl = document.getElementById("audioUrlLabel");
-  if (!labelEl || !rec) return;
-  const cid = rec.conversation_id;
-  const isVoice = rec.channel === "voice call";
-  if (rec.raw_audio_url && state.realAudioCanPlay && !state.audioTtsEnabled) {
-    labelEl.textContent = `Запись телефонной линии · ${cid}`;
-  } else {
-    labelEl.textContent = isVoice
-      ? `Озвучка звонка · ${cid}`
-      : `Аудио-озвучка чата · ${cid}`;
-  }
-}
-
 function stopSpeechSynthesis() {
   state.lastSpokenTurnIdx = -1;
-  state.ttsSequencerActive = false;
-  state.ttsSequencerPaused = false;
-  if (state.ttsNextTurnTimer) {
-    clearTimeout(state.ttsNextTurnTimer);
-    state.ttsNextTurnTimer = null;
-  }
-  const ttsEl = document.getElementById("ttsVoicePlayer");
-  if (ttsEl) {
-    try {
-      ttsEl.pause();
-      ttsEl.removeAttribute("src");
-    } catch (_e) {}
-  }
   const audioEl = document.getElementById("callAudioPlayer");
   if (audioEl) {
     audioEl.volume = 1.0;
@@ -2460,177 +2632,17 @@ function stopSpeechSynthesis() {
   }
 }
 
-function pauseTtsSequencer() {
-  state.ttsSequencerActive = false;
-  state.ttsSequencerPaused = true;
-  if (state.ttsNextTurnTimer) {
-    clearTimeout(state.ttsNextTurnTimer);
-    state.ttsNextTurnTimer = null;
-  }
-  const ttsEl = document.getElementById("ttsVoicePlayer");
-  if (ttsEl && !ttsEl.paused) {
-    try {
-      ttsEl.pause();
-    } catch (_e) {}
-  }
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    try {
-      window.speechSynthesis.cancel();
-    } catch (_e) {}
-  }
-  updateAudioPlayButtonIcon(false);
-}
-
-function playCurrentTtsChunk(rec) {
-  if (!state.ttsSequencerActive || !rec || state.activeId !== rec.conversation_id) return;
-  const ttsEl = document.getElementById("ttsVoicePlayer");
-  if (!ttsEl) return;
-
-  const turn = rec.transcript?.[state.ttsCurrentTurnIdx];
-  if (!turn) {
-    stopSpeechSynthesis();
-    updateAudioPlayButtonIcon(false);
-    restoreDefaultAudioLabel(rec);
-    return;
-  }
-
-  const chunk = state.ttsChunksQueue[state.ttsCurrentChunkIdx];
-  if (!chunk) {
-    // Advance to next spoken turn
-    const nextIdx = findFirstSpokenTurnIdx(rec.transcript, state.ttsCurrentTurnIdx + 1);
-    if (nextIdx >= 0) {
-      state.ttsNextTurnTimer = setTimeout(() => {
-        if (state.ttsSequencerActive && state.activeId === rec.conversation_id) {
-          startTtsSequencer(rec, nextIdx);
-        }
-      }, 240);
-    } else {
-      stopSpeechSynthesis();
-      updateAudioPlayButtonIcon(false);
-      restoreDefaultAudioLabel(rec);
-      const seekSlider = document.getElementById("customAudioSeekSlider");
-      if (seekSlider) {
-        seekSlider.value = "0";
-        seekSlider.style.setProperty("--progress", "0%");
-      }
-    }
-    return;
-  }
-
-  const urls = buildTtsUrlsForChunk(chunk, rec.language);
-  if (state.ttsCurrentUrlCandidateIdx < urls.length) {
-    const targetUrl = urls[state.ttsCurrentUrlCandidateIdx];
-    ttsEl.muted = false;
-    ttsEl.volume = 1.0;
-    ttsEl.src = targetUrl;
-    ttsEl.playbackRate = getSpeakerTtsPlaybackRate(turn.speaker);
-    ttsEl.play().catch((err) => {
-      if (err && err.name === "AbortError") return;
-      if (!state.ttsSequencerActive) return;
-      state.ttsCurrentUrlCandidateIdx += 1;
-      playCurrentTtsChunk(rec);
-    });
-  } else {
-    // Offline fallback if all cloud TTS endpoints are unreachable
-    const durMs = Math.max(1200, Math.min(4500, chunk.length * 55));
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      try {
-        const utter = new SpeechSynthesisUtterance(chunk);
-        utter.lang = rec.language === "EN" ? "en-US" : "ru-RU";
-        utter.rate = getSpeakerTtsPlaybackRate(turn.speaker);
-        window.speechSynthesis.speak(utter);
-      } catch (_e) {}
-    }
-    state.ttsNextTurnTimer = setTimeout(() => {
-      if (!state.ttsSequencerActive || state.activeId !== rec.conversation_id) return;
-      state.ttsCurrentChunkIdx += 1;
-      state.ttsCurrentUrlCandidateIdx = 0;
-      playCurrentTtsChunk(rec);
-    }, durMs);
-  }
-}
-
-function startTtsSequencer(rec, startIdx = 0) {
-  if (!rec || !Array.isArray(rec.transcript) || !rec.transcript.length) return;
-  const audioEl = document.getElementById("callAudioPlayer");
-  if (audioEl && !audioEl.paused) {
-    audioEl.pause();
-  }
-  if (state.ttsNextTurnTimer) {
-    clearTimeout(state.ttsNextTurnTimer);
-    state.ttsNextTurnTimer = null;
-  }
-
-  let idx = findFirstSpokenTurnIdx(rec.transcript, startIdx);
-  if (idx < 0) {
-    idx = findFirstSpokenTurnIdx(rec.transcript, 0);
-  }
-  if (idx < 0) return;
-
-  state.ttsSequencerActive = true;
-  state.ttsSequencerPaused = false;
-  state.ttsCurrentTurnIdx = idx;
-  state.ttsCurrentChunkIdx = 0;
-  state.ttsCurrentUrlCandidateIdx = 0;
-  state.lastSpokenTurnIdx = idx;
-
-  const turn = rec.transcript[idx];
-  const cleanText = normalizeTextForTts(turn?.text || "");
-  state.ttsChunksQueue = splitTextIntoTtsChunks(cleanText);
-
-  updateAudioPlayButtonIcon(true);
-
-  // Highlight active replica card in transcript
-  const container = document.getElementById("transcriptContainer");
-  if (container) {
-    const prevActive = container.querySelector(".freedom-pulse");
-    if (prevActive) prevActive.classList.remove("freedom-pulse");
-    const targetEl = container.querySelector(`[data-line-index="${idx}"]`);
-    if (targetEl) {
-      targetEl.classList.add("freedom-pulse");
-      targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }
-
-  // Update progress slider, timer, and status label
-  const ev = state.evaluations[rec.conversation_id];
-  const totalSec = getActiveTotalDurationSeconds(rec, ev);
-  const turnSec = getTurnOffsetSeconds(rec, turn, idx);
-  const pct =
-    rec.transcript.length > 1
-      ? Math.min(100, Math.max(0, (idx / (rec.transcript.length - 1)) * 100))
-      : 100;
-  const sliderEl = document.getElementById("customAudioSeekSlider");
-  const timeLabel = document.getElementById("customAudioTimeLabel");
-  const labelEl = document.getElementById("audioUrlLabel");
-
-  if (sliderEl && !sliderEl.classList.contains("is-dragging")) {
-    sliderEl.value = String(pct.toFixed(1));
-    sliderEl.style.setProperty("--progress", `${pct.toFixed(1)}%`);
-  }
-  if (timeLabel) {
-    timeLabel.textContent = `${formatMmSs(turnSec)} / ${formatMmSs(totalSec)}`;
-  }
-  if (labelEl) {
-    const sp = String(turn?.speaker || "").toLowerCase();
-    const roleLabel = sp === "client" ? "Клиент" : sp === "bot" ? "AI-Бот" : "Оператор";
-    labelEl.textContent = `🔊 Озвучка #${idx + 1}/${rec.transcript.length} (${roleLabel}) · ${rec.conversation_id}`;
-  }
-
-  playCurrentTtsChunk(rec);
-}
-
 function updateTtsButtonUI() {
   const btn = document.getElementById("audioTtsToggleBtn");
   if (!btn) return;
   if (state.audioTtsEnabled) {
     btn.className =
       "m3-morph-btn px-2.5 py-1 text-[11px] font-bold bg-[#E8F8F0] text-[#064E3B] border border-[#00A35B]/25 shrink-0";
-    btn.textContent = "🔊 TTS Вкл";
+    btn.textContent = "TTS Вкл";
   } else {
     btn.className =
       "m3-morph-btn px-2.5 py-1 text-[11px] font-bold bg-white text-[#64748B] border border-slate-200/80 shrink-0";
-    btn.textContent = "🔇 TTS Выкл";
+    btn.textContent = "TTS Выкл";
   }
 }
 
@@ -2638,34 +2650,94 @@ function speakTranscriptTurnIfNeeded(currentSec) {
   const rec = state.records.find((r) => r.conversation_id === state.activeId);
   if (!rec || !Array.isArray(rec.transcript) || !rec.transcript.length) return;
 
+  ensureTranscriptAudioOffsets(rec);
+
+  // 1. Prefer a turn whose active utterance window [start_sec - 0.15, end_sec + 0.35] contains currentSec
   let activeIdx = -1;
   for (let i = 0; i < rec.transcript.length; i++) {
     const t = rec.transcript[i];
     if (String(t.speaker || "").toLowerCase() === "system") continue;
-    const off = getTurnOffsetSeconds(rec, t, i);
-    if (currentSec + 0.35 >= off) {
+    const startSec = getTurnOffsetSeconds(rec, t, i);
+    const endSec = getTurnEndOffsetSeconds(rec, t, i);
+    if (currentSec >= startSec - 0.15 && currentSec <= endSec + 0.35) {
       activeIdx = i;
-    } else {
-      break;
     }
   }
 
+  // 2. Fallback to the most recent turn that started at or before currentSec
   if (activeIdx < 0) {
-    activeIdx = findFirstSpokenTurnIdx(rec.transcript, 0);
+    for (let i = 0; i < rec.transcript.length; i++) {
+      const t = rec.transcript[i];
+      if (String(t.speaker || "").toLowerCase() === "system") continue;
+      const startSec = getTurnOffsetSeconds(rec, t, i);
+      if (currentSec + 0.15 >= startSec) {
+        activeIdx = i;
+      } else {
+        break;
+      }
+    }
   }
+
   if (activeIdx < 0 || activeIdx === state.lastSpokenTurnIdx) return;
   state.lastSpokenTurnIdx = activeIdx;
 
+  // Плавная подсветка активной реплики в контейнере
   const container = document.getElementById("transcriptContainer");
   if (container) {
     const prevActive = container.querySelector(".freedom-pulse");
-    if (prevActive) prevActive.classList.remove("freedom-pulse");
+    if (prevActive && prevActive.dataset.lineIndex !== String(activeIdx)) {
+      prevActive.classList.remove("freedom-pulse");
+    }
     const targetEl = container.querySelector(`[data-line-index="${activeIdx}"]`);
     if (targetEl) {
       targetEl.classList.add("freedom-pulse");
-      targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const rect = targetEl.getBoundingClientRect();
+      const contRect = container.getBoundingClientRect();
+      if (rect.top < contRect.top + 24 || rect.bottom > contRect.bottom - 24) {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
     }
   }
+
+  // Speak via Web Speech API if TTS is enabled and stream is synthesized (or chat)
+  if (!state.audioTtsEnabled || state.audioSourceKind === "real") return;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+  const voices = window.speechSynthesis.getVoices() || [];
+  if (!voices.length) return;
+
+  const turn = rec.transcript[activeIdx];
+  const text = String(turn?.text || "").trim();
+  if (!text) return;
+
+  try {
+    const audioEl = document.getElementById("callAudioPlayer");
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    const langCode =
+      rec.language === "EN" ? "en-US" : rec.language === "KZ" ? "kk-KZ" : "ru-RU";
+    utter.lang = langCode;
+    const matchedVoice =
+      voices.find((v) => v.lang.toLowerCase().startsWith(langCode.slice(0, 2).toLowerCase())) ||
+      voices.find((v) => v.lang.toLowerCase().startsWith("ru")) ||
+      voices[0];
+    if (matchedVoice) utter.voice = matchedVoice;
+    utter.rate = Math.min(2.0, Math.max(0.8, (state.audioRate || 1.0) * 1.08));
+    const role = String(turn.speaker || "").toLowerCase();
+    utter.pitch = role === "client" ? 0.92 : role === "bot" ? 1.12 : 1.02;
+    utter.onstart = () => {
+      if (audioEl && state.audioSourceKind !== "real") {
+        audioEl.volume = 0.35;
+      }
+    };
+    utter.onend = () => {
+      if (audioEl) audioEl.volume = 1.0;
+    };
+    utter.onerror = () => {
+      if (audioEl) audioEl.volume = 1.0;
+    };
+    window.speechSynthesis.speak(utter);
+  } catch (_e) {}
 }
 
 async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
@@ -2673,7 +2745,6 @@ async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
   const labelEl = document.getElementById("audioUrlLabel");
   const audioEl = document.getElementById("callAudioPlayer");
 
-  state.realAudioCanPlay = false;
   if (audioEl) {
     audioEl.muted = false;
     audioEl.volume = 1.0;
@@ -2685,14 +2756,22 @@ async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
       labelEl.textContent = `Запись телефонной линии · ${cid}`;
     }
 
+    // Attempt to unwrap HTML/JSON wrapper or cache binary stream from rec.raw_audio_url
     const unwrappedUrl = await tryUnwrapRawAudioUrl(rec);
     if (state.activeId !== cid) return;
     if (unwrappedUrl && audioEl) {
-      state.realAudioCanPlay = true;
+      const wasPlaying = !audioEl.paused;
+      const savedTime = audioEl.currentTime || 0;
       if (audioEl.src !== unwrappedUrl) {
         audioEl.src = unwrappedUrl;
         audioEl.playbackRate = state.audioRate || 1.0;
         audioEl.volume = 1.0;
+        if (savedTime > 0) {
+          state.pendingAudioSeekSec = savedTime;
+        }
+        if (wasPlaying) {
+          audioEl.play().catch(() => {});
+        }
       }
       return;
     }
@@ -2700,7 +2779,7 @@ async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
     state.audioSourceKind = "synthesized";
     if (labelEl) {
       labelEl.textContent = isVoice
-        ? `Озвучка звонка · ${cid}`
+        ? `Аудиодорожка звонка · ${cid}`
         : `Аудио-озвучка чата · ${cid}`;
     }
   }
@@ -2717,38 +2796,46 @@ async function probeAudioSourceKind(rec, ev, audioUrl, isVoice) {
     if (!resp.ok || state.activeId !== cid) return;
     const ctype = (resp.headers.get("Content-Type") || "").toLowerCase();
     const srcHeader = (resp.headers.get("X-Audio-Source") || "").toLowerCase();
-    if (ctype.startsWith("audio/") && srcHeader === "real") {
+    const contentRange = resp.headers.get("Content-Range") || "";
+    const isOldSyntheticSize = contentRange.endsWith("/1440044");
+    if (ctype.startsWith("audio/") && (srcHeader === "real" || (!srcHeader && !isOldSyntheticSize && audioEl?.error))) {
       state.audioSourceKind = "real";
-      state.realAudioCanPlay = true;
       state.resolvedRealAudioUrls[cid] = audioUrl;
-      if (audioEl && audioEl.src !== audioUrl) {
+      if (audioEl && (audioEl.error || audioEl.src !== audioUrl)) {
+        const wasPlaying = !audioEl.paused;
+        const savedTime = audioEl.currentTime || 0;
         audioEl.src = audioUrl;
         audioEl.playbackRate = state.audioRate || 1.0;
         audioEl.volume = 1.0;
+        if (savedTime > 0) {
+          state.pendingAudioSeekSec = savedTime;
+        }
+        if (wasPlaying) {
+          audioEl.play().catch(() => {});
+        }
       }
       if (labelEl) {
         labelEl.textContent = `Запись телефонной линии · ${cid}`;
       }
     }
-  } catch (_err) {}
+  } catch (_err) {
+    // Keep existing audioEl.src
+  }
 }
 
 function seekAudioToTimestamp(targetInput, lineIndex = null) {
   const rec = state.records.find((r) => r.conversation_id === state.activeId);
-  if (!rec) return;
-  const ev = state.evaluations[rec.conversation_id];
+  const ev = rec ? state.evaluations[rec.conversation_id] : null;
 
   let sec = null;
-  let targetIdx = lineIndex !== null ? Number(lineIndex) : -1;
-
   if (typeof targetInput === "number" && Number.isFinite(targetInput)) {
     sec = Math.max(0, targetInput);
-  } else if (targetIdx >= 0 && rec.transcript?.[targetIdx]) {
-    sec = getTurnOffsetSeconds(rec, rec.transcript[targetIdx], targetIdx);
+  } else if (lineIndex !== null && rec?.transcript?.[lineIndex]) {
+    sec = getTurnOffsetSeconds(rec, rec.transcript[lineIndex], lineIndex);
   } else {
     const parsed = parseTimestampToSeconds(String(targetInput || ""));
     if (parsed !== null) {
-      const firstTurn = rec.transcript?.[0];
+      const firstTurn = rec?.transcript?.[0];
       const firstSec = firstTurn ? parseTimestampToSeconds(String(firstTurn.timestamp || "")) : 0;
       if (
         firstSec !== null &&
@@ -2761,32 +2848,29 @@ function seekAudioToTimestamp(targetInput, lineIndex = null) {
       }
     }
   }
-  if (sec === null) sec = 0;
+  if (sec === null) return;
 
-  if (targetIdx < 0 && Array.isArray(rec.transcript)) {
-    for (let i = 0; i < rec.transcript.length; i++) {
-      const off = getTurnOffsetSeconds(rec, rec.transcript[i], i);
-      if (off + 0.5 >= sec && String(rec.transcript[i].speaker || "").toLowerCase() !== "system") {
-        targetIdx = i;
-        break;
-      }
-    }
-    if (targetIdx < 0) {
-      targetIdx = findFirstSpokenTurnIdx(rec.transcript, 0);
-    }
-  }
-
-  if (targetIdx >= 0) {
-    scrollToTranscriptLine(targetIdx);
+  if (lineIndex !== null) {
+    scrollToTranscriptLine(lineIndex);
   }
 
   const audioEl = document.getElementById("callAudioPlayer");
-  const useRealCallStream =
-    Boolean(rec.raw_audio_url) && state.realAudioCanPlay && !state.audioTtsEnabled && audioEl && !audioEl.error;
+  const sliderEl = document.getElementById("customAudioSeekSlider");
+  const timeLabel = document.getElementById("customAudioTimeLabel");
 
-  if (useRealCallStream) {
-    stopSpeechSynthesis();
-    const totalSec = Math.max(sec + 1, getActiveTotalDurationSeconds(rec, ev));
+  const totalSec = Math.max(sec + 1, getActiveTotalDurationSeconds(rec, ev));
+  state.lastSpokenTurnIdx = -1;
+
+  if (audioEl) {
+    audioEl.muted = false;
+    audioEl.volume = 1.0;
+    if ((!audioEl.getAttribute("src") || audioEl.error) && rec) {
+      const cid = rec.conversation_id;
+      audioEl.dataset.activeCid = cid;
+      audioEl.src =
+        state.resolvedRealAudioUrls[cid] || rec.raw_audio_url || getOrCreateClientWavUrl(rec, ev);
+      audioEl.playbackRate = state.audioRate || 1.0;
+    }
     if (audioEl.readyState >= 1) {
       try {
         audioEl.currentTime = Math.min(sec, Math.max(0, (audioEl.duration || totalSec) - 0.1));
@@ -2797,15 +2881,28 @@ function seekAudioToTimestamp(targetInput, lineIndex = null) {
     } else {
       state.pendingAudioSeekSec = sec;
     }
-    audioEl.play().catch(() => {
-      startTtsSequencer(rec, Math.max(0, targetIdx));
+    audioEl.play().catch((err) => {
+      if (err && err.name === "AbortError") return;
+      if (rec) {
+        state.audioSourceKind = "synthesized";
+        state.pendingAudioSeekSec = sec;
+        audioEl.src = getOrCreateClientWavUrl(rec, ev);
+        audioEl.playbackRate = state.audioRate || 1.0;
+        audioEl.volume = 1.0;
+        audioEl.play().catch(() => {});
+      }
     });
-  } else {
-    state.audioTtsEnabled = true;
-    updateTtsButtonUI();
-    startTtsSequencer(rec, Math.max(0, targetIdx));
   }
 
+  const pct = Math.min(100, Math.max(0, (sec / totalSec) * 100));
+  if (sliderEl) {
+    sliderEl.value = String(pct.toFixed(1));
+    sliderEl.style.setProperty("--progress", `${pct.toFixed(1)}%`);
+  }
+  renderM3WormWave(pct);
+  if (timeLabel) {
+    timeLabel.textContent = `${formatMmSs(sec)} / ${formatMmSs(totalSec)}`;
+  }
   showToast(`Воспроизведение с ${formatMmSs(sec)}`);
 }
 
@@ -3027,8 +3124,6 @@ function renderActiveTranscript() {
     const totalSec = getActiveTotalDurationSeconds(rec, ev);
     if (audioPlayer.dataset.activeCid !== rec.conversation_id) {
       stopSpeechSynthesis();
-      state.ttsCurrentTurnIdx = 0;
-      state.ttsChunksQueue = [];
       audioPlayer.pause();
       const cid = rec.conversation_id;
       audioPlayer.dataset.activeCid = cid;
@@ -3051,12 +3146,15 @@ function renderActiveTranscript() {
         sliderEl.value = "0";
         sliderEl.style.setProperty("--progress", "0%");
       }
+      state.wormAmp = 0;
+      renderM3WormWave(0);
       if (timeLabel) {
         timeLabel.textContent = `00:00 / ${formatMmSs(totalSec)}`;
       }
       probeAudioSourceKind(rec, ev, targetAudioUrl, isVoice);
     } else if (audioPlayer.paused && timeLabel && !audioPlayer.currentTime) {
       timeLabel.textContent = `00:00 / ${formatMmSs(totalSec)}`;
+      renderM3WormWave();
     }
     updateTtsButtonUI();
   }
@@ -3068,9 +3166,7 @@ function renderActiveTranscript() {
     const speaker = String(turn.speaker || "").toLowerCase();
     const rawTs = String(turn.timestamp || "00:00");
     const turnOffsetSec = getTurnOffsetSeconds(rec, turn, idx);
-    const displayTimestamp =
-      turn.formatted_offset ||
-      (rawTs.includes("T") || rawTs.length > 10 ? formatMmSs(turnOffsetSec) : rawTs);
+    const displayTimestamp = formatMmSs(turnOffsetSec);
     const safeTimestamp = String(displayTimestamp)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -3123,17 +3219,17 @@ function renderActiveTranscript() {
           </div>
           <div class="space-y-1">
             <div class="flex items-center gap-2 text-[11px] text-[#64748B] px-1">
-              <span class="font-bold text-[#334155]">Клиент</span>
+              <span class="font-extrabold text-[#1E293B]">Клиент</span>
               <button
                 type="button"
                 data-seek-ts="${safeTimestamp}"
                 class="font-display font-bold text-[#00A35B] hover:underline cursor-pointer"
                 title="Перемотать и воспроизвести с ${safeTimestamp}"
               >
-                ▶ ${safeTimestamp}
+                ${safeTimestamp}
               </button>
             </div>
-            <div class="max-w-full whitespace-pre-wrap break-words rounded-3xl rounded-tl-sm bg-[#F1F5F9] px-4 py-3 text-xs leading-relaxed text-[#0F172A]">
+            <div class="max-w-full whitespace-pre-wrap break-words rounded-3xl rounded-tl-sm bg-[#F1F5F9] px-4 py-3 text-xs font-medium leading-relaxed text-[#0F172A]">
               ${safeText}
             </div>
           </div>
@@ -3150,14 +3246,14 @@ function renderActiveTranscript() {
                 class="font-display font-bold text-[#00A35B] hover:underline cursor-pointer"
                 title="Перемотать и воспроизвести с ${safeTimestamp}"
               >
-                ▶ ${safeTimestamp}
+                ${safeTimestamp}
               </button>
-              <span class="font-bold text-[#064E3B]">${speaker === "bot" ? "AIM · AI-ассистент" : "Оператор Freedom"}</span>
+              <span class="font-extrabold text-[#064E3B]">${speaker === "bot" ? "AI-ассистент" : "Оператор Freedom"}</span>
               <svg class="w-3.5 h-3.5 text-[#00A35B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
                 <path d="M20 6 9 17l-5-5" />
               </svg>
             </div>
-            <div class="max-w-full whitespace-pre-wrap break-words rounded-3xl rounded-tr-sm border border-[#00A35B]/15 bg-[#E8F8F0] px-4 py-3 text-left text-xs leading-relaxed text-[#064E3B]">
+            <div class="max-w-full whitespace-pre-wrap break-words rounded-3xl rounded-tr-sm border border-[#00A35B]/15 bg-[#E8F8F0] px-4 py-3 text-left text-xs font-medium leading-relaxed text-[#064E3B]">
               ${safeText}
             </div>
           </div>
@@ -3937,11 +4033,7 @@ function updateApiKeyHeaderUI() {
   const kpiLink = document.getElementById("kpiOpenApiKeyBtn");
 
   if (headerDot) {
-    headerDot.className = isActive
-      ? "w-2 h-2 rounded-full bg-[#00A35B] shrink-0"
-      : hasKey
-      ? "w-2 h-2 rounded-full bg-amber-500 shrink-0"
-      : "w-2 h-2 rounded-full bg-slate-400 shrink-0";
+    headerDot.className = "hidden";
   }
   if (headerLabel) {
     headerLabel.textContent = isActive ? `API: ${cfg.model || cfg.provider}` : "API ключ";
@@ -3958,11 +4050,7 @@ function updateApiKeyHeaderUI() {
   const clearBtn = document.getElementById("clearApiKeyBtn");
 
   if (modalDot) {
-    modalDot.className = isActive
-      ? "w-2.5 h-2.5 rounded-full bg-[#00A35B] shrink-0"
-      : cfg.provider && cfg.provider !== "builtin"
-      ? "w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"
-      : "w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0";
+    modalDot.className = "hidden";
   }
   if (modalBadge) {
     if (isActive) {
@@ -4047,6 +4135,8 @@ async function openApiKeyModal() {
   const modal = document.getElementById("apiKeyModal");
   if (!modal) return;
   document.getElementById("kpiDetailsPopover")?.classList.add("hidden");
+  document.getElementById("settingsDropdownMenu")?.classList.add("hidden");
+  document.getElementById("settingsMenuTriggerBtn")?.classList.remove("is-active");
 
   try {
     const resp = await apiRequest("/api/settings/llm");
@@ -4089,7 +4179,7 @@ function detectProviderFromKeyInput(rawText) {
   } else if (/AIza[0-9A-Za-z_\-]{20,}|AQ\.[0-9A-Za-z_\-\.]{15,}|x-goog-api-key|generativelanguage/i.test(txt)) {
     provEl.value = "gemini";
     if (modelEl && (!modelEl.value || !modelEl.value.startsWith("gemini"))) {
-      modelEl.value = "gemini-flash-latest";
+      modelEl.value = "gemini-flash-lite-latest";
     }
   } else if (provEl.value === "builtin") {
     provEl.value = "gemini";
@@ -4288,11 +4378,14 @@ function initCqaApp() {
   const kpiBtn = document.getElementById("kpiPopoverTriggerBtn");
   const kpiPopover = document.getElementById("kpiDetailsPopover");
   kpiBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
     e.stopPropagation();
+    document.getElementById("settingsDropdownMenu")?.classList.add("hidden");
+    document.getElementById("settingsMenuTriggerBtn")?.classList.remove("is-active");
     kpiPopover?.classList.toggle("hidden");
   });
   document.addEventListener("click", (e) => {
-    if (kpiPopover && !kpiPopover.contains(e.target) && e.target !== kpiBtn) {
+    if (kpiPopover && !kpiPopover.contains(e.target) && !kpiBtn?.contains(e.target)) {
       kpiPopover.classList.add("hidden");
     }
   });
@@ -4318,108 +4411,85 @@ function initCqaApp() {
 
   // Кастомный аудиоплеер с червякообразным слайдером (Worm Slider)
   const audioEl = document.getElementById("callAudioPlayer");
-  const ttsEl = document.getElementById("ttsVoicePlayer");
   const playBtn = document.getElementById("customAudioPlayBtn");
   const seekSlider = document.getElementById("customAudioSeekSlider");
   const timeLabel = document.getElementById("customAudioTimeLabel");
   const ttsBtn = document.getElementById("audioTtsToggleBtn");
 
-  ttsEl?.addEventListener("ended", () => {
-    if (!state.ttsSequencerActive) return;
-    const rec = state.records.find((r) => r.conversation_id === state.activeId);
-    if (!rec) return;
-    state.ttsCurrentChunkIdx += 1;
-    state.ttsCurrentUrlCandidateIdx = 0;
-    playCurrentTtsChunk(rec);
-  });
-
-  ttsEl?.addEventListener("error", () => {
-    if (!state.ttsSequencerActive) return;
-    const rec = state.records.find((r) => r.conversation_id === state.activeId);
-    if (!rec) return;
-    state.ttsCurrentUrlCandidateIdx += 1;
-    playCurrentTtsChunk(rec);
-  });
-
   playBtn?.addEventListener("click", async () => {
+    if (!audioEl) return;
     const rec = state.records.find((r) => r.conversation_id === state.activeId);
-    if (!rec) return;
+    const ev = rec ? state.evaluations[rec.conversation_id] : null;
+    audioEl.muted = false;
+    audioEl.volume = 1.0;
 
-    // 1. If TTS Sequencer is currently speaking -> Pause it
-    if (state.ttsSequencerActive) {
-      pauseTtsSequencer();
-      return;
-    }
-
-    // 2. If callAudioPlayer is currently playing -> Pause it
-    if (audioEl && !audioEl.paused) {
-      audioEl.pause();
-      updateAudioPlayButtonIcon(false);
-      return;
-    }
-
-    // 3. If TTS Sequencer was paused on this conversation -> Resume it
-    if (state.ttsSequencerPaused && state.ttsChunksQueue.length > 0) {
-      state.ttsSequencerActive = true;
-      state.ttsSequencerPaused = false;
-      updateAudioPlayButtonIcon(true);
-      if (ttsEl && ttsEl.getAttribute("src") && ttsEl.paused) {
-        ttsEl.play().catch(() => {
-          playCurrentTtsChunk(rec);
-        });
+    if ((!audioEl.getAttribute("src") || audioEl.error) && rec) {
+      const cid = rec.conversation_id;
+      audioEl.dataset.activeCid = cid;
+      if (state.resolvedRealAudioUrls[cid]) {
+        state.audioSourceKind = "real";
+        audioEl.src = state.resolvedRealAudioUrls[cid];
+      } else if (rec.raw_audio_url) {
+        const unwrapped = await tryUnwrapRawAudioUrl(rec);
+        if (unwrapped) {
+          state.audioSourceKind = "real";
+          audioEl.src = unwrapped;
+        } else {
+          state.audioSourceKind = "synthesized";
+          audioEl.src = getOrCreateClientWavUrl(rec, ev);
+        }
       } else {
-        playCurrentTtsChunk(rec);
+        state.audioSourceKind = "synthesized";
+        audioEl.src = getOrCreateClientWavUrl(rec, ev);
       }
-      return;
+      audioEl.playbackRate = state.audioRate || 1.0;
     }
 
-    // 4. Determine whether to play real call stream or Neural TTS Voiceover Sequencer
-    const canPlayReal =
-      Boolean(rec.raw_audio_url) &&
-      state.realAudioCanPlay &&
-      !state.audioTtsEnabled &&
-      audioEl &&
-      !audioEl.error;
-
-    if (canPlayReal) {
-      audioEl.muted = false;
-      audioEl.volume = 1.0;
-      audioEl.playbackRate = state.audioRate || 1.0;
-      audioEl.play().catch(() => {
-        state.audioTtsEnabled = true;
-        updateTtsButtonUI();
-        startTtsSequencer(rec, 0);
+    if (audioEl.paused) {
+      state.lastSpokenTurnIdx = -1;
+      audioEl.play().catch(async (err) => {
+        if (err && err.name === "AbortError") return;
+        if (rec) {
+          if (rec.raw_audio_url && !state.resolvedRealAudioUrls[rec.conversation_id]) {
+            const unwrapped = await tryUnwrapRawAudioUrl(rec);
+            if (unwrapped && audioEl.src !== unwrapped) {
+              state.audioSourceKind = "real";
+              audioEl.src = unwrapped;
+              audioEl.playbackRate = state.audioRate || 1.0;
+              audioEl.volume = 1.0;
+              audioEl.play().catch(() => {});
+              return;
+            }
+          }
+          state.audioSourceKind = "synthesized";
+          audioEl.src = getOrCreateClientWavUrl(rec, ev);
+          audioEl.playbackRate = state.audioRate || 1.0;
+          audioEl.volume = 1.0;
+          audioEl.play().catch((err2) => {
+            if (err2 && err2.name === "AbortError") return;
+            showToast(`Не удалось запустить воспроизведение: ${err2.message || "ошибка потока"}`);
+          });
+        }
       });
     } else {
-      state.audioTtsEnabled = true;
-      updateTtsButtonUI();
-      startTtsSequencer(rec, 0);
-    }
-  });
-
-  audioEl?.addEventListener("canplay", () => {
-    const rec = state.records.find((r) => r.conversation_id === state.activeId);
-    if (!rec || !audioEl) return;
-    const cid = rec.conversation_id;
-    const src = String(audioEl.src || "");
-    if (rec.raw_audio_url && src && src !== state.clientWavUrls[cid]) {
-      state.realAudioCanPlay = true;
-      state.audioSourceKind = "real";
+      audioEl.pause();
+      stopSpeechSynthesis();
     }
   });
 
   audioEl?.addEventListener("error", async () => {
     const rec = state.records.find((r) => r.conversation_id === state.activeId);
+    const ev = rec ? state.evaluations[rec.conversation_id] : null;
     if (!rec || !audioEl) return;
     const cid = rec.conversation_id;
     const currentSrc = String(audioEl.src || "");
 
+    // If direct raw_audio_url returned HTML/JSON wrapper instead of raw audio, try unwrapping first
     if (rec.raw_audio_url && currentSrc === rec.raw_audio_url) {
       const unwrapped = await tryUnwrapRawAudioUrl(rec);
       if (state.activeId !== cid) return;
       if (unwrapped && unwrapped !== currentSrc) {
         state.audioSourceKind = "real";
-        state.realAudioCanPlay = true;
         audioEl.src = unwrapped;
         audioEl.playbackRate = state.audioRate || 1.0;
         audioEl.volume = 1.0;
@@ -4427,34 +4497,48 @@ function initCqaApp() {
       }
     }
 
-    state.realAudioCanPlay = false;
-    state.audioSourceKind = "synthesized";
+    if (!currentSrc.startsWith("blob:")) {
+      state.audioSourceKind = "synthesized";
+      audioEl.src = getOrCreateClientWavUrl(rec, ev);
+      audioEl.playbackRate = state.audioRate || 1.0;
+      audioEl.volume = 1.0;
+    }
   });
 
   audioEl?.addEventListener("play", () => {
     audioEl.muted = false;
-    audioEl.volume = 1.0;
+    if (audioEl.volume < 0.2) audioEl.volume = 1.0;
     updateAudioPlayButtonIcon(true);
+    document.getElementById("audioPlayerContainer")?.classList.add("audio-playing-worm");
+    seekSlider?.classList.add("is-worm-active");
+    startWormAnimationLoop();
     speakTranscriptTurnIfNeeded(audioEl.currentTime || 0);
   });
 
   audioEl?.addEventListener("pause", () => {
-    if (!state.ttsSequencerActive) {
-      updateAudioPlayButtonIcon(false);
-    }
+    updateAudioPlayButtonIcon(false);
+    document.getElementById("audioPlayerContainer")?.classList.remove("audio-playing-worm");
+    seekSlider?.classList.remove("is-worm-active");
+    stopWormAnimationLoop();
+    stopSpeechSynthesis();
   });
 
   audioEl?.addEventListener("ended", () => {
     updateAudioPlayButtonIcon(false);
+    document.getElementById("audioPlayerContainer")?.classList.remove("audio-playing-worm");
+    seekSlider?.classList.remove("is-worm-active");
+    stopWormAnimationLoop();
     stopSpeechSynthesis();
     if (seekSlider) {
       seekSlider.value = "0";
       seekSlider.style.setProperty("--progress", "0%");
     }
+    state.wormAmp = 0;
+    renderM3WormWave(0);
   });
 
   const syncAudioDurationLabel = () => {
-    if (!audioEl || state.ttsSequencerActive) return;
+    if (!audioEl) return;
     if (state.pendingAudioSeekSec !== null && audioEl.readyState >= 1) {
       const targetSec = state.pendingAudioSeekSec;
       state.pendingAudioSeekSec = null;
@@ -4469,13 +4553,14 @@ function initCqaApp() {
     if (timeLabel && !seekSlider?.classList.contains("is-dragging")) {
       timeLabel.textContent = `${formatMmSs(curSec)} / ${formatMmSs(totalSec)}`;
     }
+    renderM3WormWave();
   };
 
   audioEl?.addEventListener("loadedmetadata", syncAudioDurationLabel);
   audioEl?.addEventListener("durationchange", syncAudioDurationLabel);
 
   audioEl?.addEventListener("timeupdate", () => {
-    if (!audioEl || state.ttsSequencerActive || seekSlider?.classList.contains("is-dragging")) return;
+    if (!audioEl || seekSlider?.classList.contains("is-dragging")) return;
     const rec = state.records.find((r) => r.conversation_id === state.activeId);
     const ev = rec ? state.evaluations[rec.conversation_id] : null;
     const totalSec = getActiveTotalDurationSeconds(rec, ev);
@@ -4485,6 +4570,7 @@ function initCqaApp() {
       seekSlider.value = String(pct.toFixed(1));
       seekSlider.style.setProperty("--progress", `${pct.toFixed(1)}%`);
     }
+    renderM3WormWave(pct);
     if (timeLabel) {
       timeLabel.textContent = `${formatMmSs(curSec)} / ${formatMmSs(totalSec)}`;
     }
@@ -4494,51 +4580,50 @@ function initCqaApp() {
   });
 
   ttsBtn?.addEventListener("click", () => {
-    const rec = state.records.find((r) => r.conversation_id === state.activeId);
     state.audioTtsEnabled = !state.audioTtsEnabled;
     updateTtsButtonUI();
     if (!state.audioTtsEnabled) {
       stopSpeechSynthesis();
-      updateAudioPlayButtonIcon(Boolean(audioEl && !audioEl.paused));
-      if (rec) restoreDefaultAudioLabel(rec);
+      if (audioEl) {
+        audioEl.volume = 1.0;
+      }
       showToast("Голосовая озвучка TTS выключена");
     } else {
-      if (rec) {
-        startTtsSequencer(rec, Math.max(0, state.ttsCurrentTurnIdx || 0));
+      if (audioEl) {
+        audioEl.volume = 1.0;
       }
-      showToast("Запущена голосовая озвучка реплик (TTS)");
+      if (audioEl && !audioEl.paused) {
+        state.lastSpokenTurnIdx = -1;
+        speakTranscriptTurnIfNeeded(audioEl.currentTime || 0);
+      }
+      showToast("Голосовая озвучка реплик (TTS) включена");
     }
   });
 
-  seekSlider?.addEventListener("pointerdown", () => seekSlider.classList.add("is-dragging"));
-  window.addEventListener("pointerup", () => seekSlider?.classList.remove("is-dragging"));
+  seekSlider?.addEventListener("pointerdown", () => {
+    seekSlider.classList.add("is-dragging");
+    renderM3WormWave();
+  });
+  window.addEventListener("pointerup", () => {
+    if (seekSlider?.classList.contains("is-dragging")) {
+      seekSlider.classList.remove("is-dragging");
+      renderM3WormWave();
+    }
+  });
+  window.addEventListener("resize", () => renderM3WormWave());
 
   seekSlider?.addEventListener("input", (e) => {
     const pct = Number(e.target.value || 0);
     seekSlider.style.setProperty("--progress", `${pct}%`);
+    renderM3WormWave(pct);
     const rec = state.records.find((r) => r.conversation_id === state.activeId);
-    if (!rec) return;
-    const ev = state.evaluations[rec.conversation_id];
+    const ev = rec ? state.evaluations[rec.conversation_id] : null;
     const totalSec = getActiveTotalDurationSeconds(rec, ev);
     const curSec = (pct / 100) * totalSec;
     if (timeLabel) {
       timeLabel.textContent = `${formatMmSs(curSec)} / ${formatMmSs(totalSec)}`;
     }
-
-    if (state.ttsSequencerActive || state.ttsSequencerPaused || state.audioTtsEnabled || !state.realAudioCanPlay) {
-      const totalTurns = (rec.transcript || []).length;
-      if (totalTurns > 0) {
-        const targetIdx = Math.min(totalTurns - 1, Math.max(0, Math.floor((pct / 100) * totalTurns)));
-        if (state.ttsSequencerActive) {
-          startTtsSequencer(rec, targetIdx);
-        } else {
-          state.ttsCurrentTurnIdx = targetIdx;
-          scrollToTranscriptLine(targetIdx);
-        }
-      }
-      return;
-    }
-
+    state.lastSpokenTurnIdx = -1;
     if (audioEl) {
       if (audioEl.readyState >= 1) {
         try {
@@ -4557,11 +4642,6 @@ function initCqaApp() {
       const rate = parseFloat(rateBtn.dataset.audioRate || "1");
       state.audioRate = rate;
       if (audioEl) audioEl.playbackRate = rate;
-      if (ttsEl) {
-        const rec = state.records.find((r) => r.conversation_id === state.activeId);
-        const curTurn = rec?.transcript?.[state.ttsCurrentTurnIdx];
-        ttsEl.playbackRate = getSpeakerTtsPlaybackRate(curTurn?.speaker);
-      }
       document.querySelectorAll("[data-audio-rate]").forEach((b) => {
         const active = parseFloat(b.dataset.audioRate || "1") === rate;
         b.className = active
@@ -4581,6 +4661,95 @@ function initCqaApp() {
   document.getElementById("closeAppealModalBtn")?.addEventListener("click", closeAppealModal);
   document.getElementById("cancelAppealBtn")?.addEventListener("click", closeAppealModal);
   document.getElementById("submitAppealBtn")?.addEventListener("click", submitOperatorAppeal);
+
+  // Меню Настройки и выгрузка results.json (Хакатон)
+  const settingsBtn = document.getElementById("settingsMenuTriggerBtn");
+  const settingsMenu = document.getElementById("settingsDropdownMenu");
+  settingsBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (!settingsMenu) return;
+    const isNowHidden = settingsMenu.classList.toggle("hidden");
+    settingsBtn.classList.toggle("is-active", !isNowHidden);
+    if (!isNowHidden) {
+      kpiPopover?.classList.add("hidden");
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!settingsMenu || settingsMenu.classList.contains("hidden")) return;
+    if (!settingsMenu.contains(e.target) && !settingsBtn?.contains(e.target)) {
+      settingsMenu.classList.add("hidden");
+      settingsBtn?.classList.remove("is-active");
+    }
+  });
+
+  document.getElementById("downloadResultsJsonBtn")?.addEventListener("click", async () => {
+    settingsMenu?.classList.add("hidden");
+    settingsBtn?.classList.remove("is-active");
+    try {
+      showToast("Формирование results.json для хакатона...");
+      const groupId = state.groupId || "DEV";
+      const resp = await window.fetch(`/api/export/hackathon?group_id=${encodeURIComponent(groupId)}`);
+      if (!resp.ok) {
+        throw new Error(`Ошибка сервера: ${resp.status}`);
+      }
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `results_${groupId.toLowerCase()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      showToast(`Файл сохранен: results/${groupId.toLowerCase()}/results.json`);
+    } catch (err) {
+      showToast(`Ошибка экспорта: ${err.message}`, "error");
+    }
+  });
+
+  const uploadBtn = document.getElementById("uploadDatasetJsonBtn");
+  const fileInput = document.getElementById("datasetFileInput");
+  uploadBtn?.addEventListener("click", () => {
+    settingsMenu?.classList.add("hidden");
+    settingsBtn?.classList.remove("is-active");
+    fileInput?.click();
+  });
+
+  fileInput?.addEventListener("change", async (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    try {
+      showToast(`Чтение файла ${file.name}...`);
+      const text = await file.text();
+      const payload = JSON.parse(text);
+
+      let targetGroup = (state.groupId || "PROD").trim().toUpperCase();
+      if (payload?.data?.dataset_group_id) {
+        targetGroup = String(payload.data.dataset_group_id).trim().toUpperCase();
+      } else if (file.name.toLowerCase().includes("prod") || targetGroup === "DEV") {
+        targetGroup = "PROD";
+      }
+
+      showToast(`Импорт и оценка набора ${targetGroup}...`);
+      const resp = await window.fetch("/api/conversations/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ group_id: targetGroup, payload })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.isSuccess) {
+        throw new Error(data.error || "Не удалось импортировать файл");
+      }
+
+      showToast(`Успешно загружено ${data.imported_count || 0} диалогов!`);
+      await loadDataset(targetGroup);
+    } catch (err) {
+      showToast(`Ошибка загрузки: ${err.message}`, "error");
+    } finally {
+      if (fileInput) fileInput.value = "";
+    }
+  });
 
   // Модалка конструктора чек-листа
   document.getElementById("openChecklistModalBtn")?.addEventListener("click", openChecklistModal);
@@ -4640,10 +4809,10 @@ function initCqaApp() {
     const prov = e.target.value;
     const modelEl = document.getElementById("llmModelInput");
     const defaults = {
-      gemini: "gemini-flash-latest",
+      gemini: "gemini-flash-lite-latest",
       openai: "gpt-4o-mini",
       ollama: "llama3.1:8b",
-      builtin: "gemini-flash-latest"
+      builtin: "gemini-flash-lite-latest"
     };
     if (modelEl && defaults[prov]) {
       modelEl.value = defaults[prov];
