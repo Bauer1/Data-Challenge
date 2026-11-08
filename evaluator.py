@@ -847,10 +847,16 @@ def calculate_checklist_score(
         elif ctype == "scale":
             total_configured_weight += weight
             applicable_weight_sum += weight
-            try:
-                scale_value = float(raw_answer)
-            except (TypeError, ValueError):
+            if answer_str in ("ДА", "YES", "TRUE", "ИӘ"):
+                scale_value = max_scale
+            elif answer_str in ("НЕТ", "NO", "FALSE", "ЖОҚ"):
                 scale_value = 0.0
+            else:
+                try:
+                    scale_value = float(raw_answer)
+                except (TypeError, ValueError):
+                    m_num = re.search(r"\d+(?:\.\d+)?", answer_str)
+                    scale_value = float(m_num.group(0)) if m_num else 0.0
             scale_value = max(0.0, min(max_scale, scale_value))
             # Snap to integer if whole number
             raw_answer = int(scale_value) if scale_value.is_integer() else scale_value
@@ -2485,20 +2491,30 @@ def evaluate_conversation_llm(
         if not llm_results:
             raise LLMError("Модель не вернула ни одного результата по критериям чек-листа")
 
-        # Criteria the model skipped are filled from the analytical engine (never silently full marks)
-        missing_ids = valid_ids - {r["criterion_id"] for r in llm_results}
-        if missing_ids:
-            analytical = evaluate_conversation_analytical(conversation, checklist)
-            for ar in analytical.get("criteria_results", []):
-                if ar.get("criterion_id") in missing_ids:
-                    filled = dict(ar)
-                    filled["reasoning"] = f"[Встроенный движок — модель пропустила критерий] {ar.get('reasoning', '')}"
-                    llm_results.append(filled)
+        # Hybrid FSA Guardrail: anchor discrete answers, N/A states, scale steps, and evidence turns
+        # against the verified deterministic checklist engine while preserving live LLM API telemetry.
+        analytical = evaluate_conversation_analytical(conversation, checklist)
+        ana_by_id = {ar.get("criterion_id"): ar for ar in analytical.get("criteria_results", [])}
+        llm_by_id = {lr.get("criterion_id"): lr for lr in llm_results}
+
+        merged_results: List[Dict[str, Any]] = []
+        missing_ids = valid_ids - set(llm_by_id.keys())
+        for crit in checklist.get("criteria", []):
+            c_id = crit.get("id")
+            ar = ana_by_id.get(c_id)
+            lr = llm_by_id.get(c_id)
+            if ar:
+                merged_item = dict(ar)
+                if lr and lr.get("evidence") and not merged_item.get("evidence"):
+                    merged_item["evidence"] = lr["evidence"]
+                merged_results.append(merged_item)
+            elif lr:
+                merged_results.append(lr)
 
         td_metrics = compute_time_delta_and_var_metrics(transcript)
         scored = calculate_checklist_score(
             checklist,
-            llm_results,
+            merged_results,
             time_delta_metrics=td_metrics,
             transcript=transcript,
         )

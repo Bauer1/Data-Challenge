@@ -1283,9 +1283,11 @@ class CQARequestHandler(BaseHTTPRequestHandler):
     def _handle_evaluate(self, body: Dict[str, Any]) -> None:
         cid = body.get("conversation_id")
         eval_all = bool(body.get("all", False))
+        group_id = (body.get("group_id") or "").strip()
         checklist_id = body.get("checklist_id")
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
+        target_cids: List[str] = []
         with DB_LOCK:
             conn = get_db()
             checklist = get_active_checklist(conn, checklist_id)
@@ -1293,12 +1295,25 @@ class CQARequestHandler(BaseHTTPRequestHandler):
             cur = conn.cursor()
 
             if eval_all:
+                if group_id and group_id.upper() not in ("ALL", "*"):
+                    if group_id.upper() in ("PROD", "FBROKER"):
+                        cur.execute(
+                            "SELECT conversation_id, channel, language, audio_url, transcript_json FROM conversations WHERE UPPER(dataset_group_id) IN ('PROD', 'FBROKER') ORDER BY conversation_id ASC"
+                        )
+                    else:
+                        cur.execute(
+                            "SELECT conversation_id, channel, language, audio_url, transcript_json FROM conversations WHERE UPPER(dataset_group_id) = UPPER(?) ORDER BY conversation_id ASC",
+                            (group_id,)
+                        )
+                else:
+                    cur.execute("SELECT conversation_id, channel, language, audio_url, transcript_json FROM conversations ORDER BY conversation_id ASC")
+                rows = cur.fetchall()
+                target_cids = [r["conversation_id"] for r in rows]
+
                 use_llm_batch = is_llm_active(llm_cfg) and not body.get("force_builtin")
                 if use_llm_batch:
                     conn.close()
                 else:
-                    cur.execute("SELECT conversation_id, channel, language, audio_url, transcript_json FROM conversations")
-                    rows = cur.fetchall()
                     for r in rows:
                         rec = {
                             "conversation_id": r["conversation_id"],
@@ -1319,7 +1334,7 @@ class CQARequestHandler(BaseHTTPRequestHandler):
                     self._send_json({
                         "isSuccess": True,
                         "evaluated_count": len(rows),
-                        "message": f"Все диалоги ({len(rows)} шт.) успешно переоценены по чек-листу «{checklist['name']}»."
+                        "message": f"Диалоги набора {group_id or 'ALL'} ({len(rows)} шт.) успешно переоценены по чек-листу «{checklist['name']}»."
                     })
                     return
 
@@ -1330,12 +1345,16 @@ class CQARequestHandler(BaseHTTPRequestHandler):
 
         if eval_all:
             # LLM batch: runs in the background, the UI polls /api/jobs/current
-            job = start_batch_llm_job("Пакетная оценка всех диалогов", reset_appeals=True)
+            job = start_batch_llm_job(
+                f"Оценка набора {group_id or 'ALL'}",
+                reset_appeals=True,
+                conversation_ids=target_cids
+            )
             self._send_json({
                 "isSuccess": True,
                 "job": job,
                 "message": (
-                    f"Запущена оценка {job['total']} диалогов через {LLM_PROVIDERS[job['provider']]['label']} ({job['model']})."
+                    f"Запущена оценка {job['total']} диалогов ({group_id or 'ALL'}) через {LLM_PROVIDERS[job['provider']]['label']} ({job['model']})."
                     if job else "Нет диалогов для оценки."
                 ),
             })
