@@ -526,7 +526,10 @@ input:checked + .m3-switch-track:active .m3-switch-thumb {
         DEV <span id="segDevCount" class="opacity-75">(65)</span>
       </button>
       <button type="button" data-segment-group="PROD" class="m3-seg-pill">
-        PROD <span id="segProdCount" class="opacity-75">(10)</span>
+        FBroker / PROD <span id="segProdCount" class="opacity-75">(10)</span>
+      </button>
+      <button type="button" data-segment-group="Swap" class="m3-seg-pill">
+        SWAP <span id="segSwapCount" class="opacity-75">(3)</span>
       </button>
       <div class="hidden sm:flex items-center pl-2 pr-1 border-l border-slate-200/90 gap-1">
         <input
@@ -1618,14 +1621,16 @@ async function apiRequest(endpoint, options = {}) {
     );
   }
   if (endpoint === "/api/evaluate_all") {
+    const reqBody = options?.body ? JSON.parse(options.body) : {};
+    const targetGroup = reqBody.group_id || state.groupId || "DEV";
     const response = await window.fetch("/api/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ all: true })
+      body: JSON.stringify({ all: true, group_id: targetGroup })
     });
     const { data } = await readJson(response);
     if (!response.ok || !data.isSuccess) return jsonResponse(data, response.status);
-    const dataset = await loadCompatibleDataset(state.groupId);
+    const dataset = await loadCompatibleDataset(targetGroup);
     return jsonResponse({ ...data, evaluations: dataset.data.evaluations }, dataset.response.status);
   }
   if (endpoint === "/api/appeal" && options.method === "POST") {
