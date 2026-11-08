@@ -53,8 +53,16 @@ AUDIO_CACHE_DIR = os.path.join(DATA_DIR, "audio_cache")
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 DB_PATH = os.path.join(DATA_DIR, "cqa.db")
 DEV_DATASET_FALLBACK = os.path.join(BASE_DIR, "dev_dataset.json")
+FBROKER_DATASET_FALLBACK = os.path.join(BASE_DIR, "fbroker_dataset.json")
+SWAP_DATASET_FALLBACK = os.path.join(BASE_DIR, "swap_dataset.json")
 
-ORGANIZER_API_URL = os.environ.get("ORGANIZER_API_URL", "").strip()
+DEFAULT_ORGANIZER_API_URL = (
+    "https://ec88f21f1accecf38e20095a9fe175.a5.environment.api.powerplatform.com/"
+    "powerautomate/automations/direct/cu/11/workflows/b3d2a68006a24662be2b721454cb4e00/"
+    "triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0"
+    "&sig=5Sog2MThgCRTlk3HObv70LRmRk6u7IOwzlwMpe804qo"
+)
+ORGANIZER_API_URL = (os.environ.get("ORGANIZER_API_URL", "") or DEFAULT_ORGANIZER_API_URL).strip()
 
 DB_LOCK = threading.Lock()
 
@@ -177,6 +185,19 @@ def init_db() -> None:
                 except Exception:
                     pass
             conn.commit()
+
+        # Ensure FBroker (PROD 10 chats) and Swap (3 chats) datasets are seeded in intermediate SQLite DB
+        for fb_path, default_grp in ((FBROKER_DATASET_FALLBACK, "FBroker"), (SWAP_DATASET_FALLBACK, "Swap")):
+            if os.path.exists(fb_path):
+                try:
+                    with open(fb_path, "r", encoding="utf-8") as f:
+                        fb_payload = json.load(f)
+                    fb_records = fb_payload.get("data", {}).get("records", [])
+                    fb_group = fb_payload.get("data", {}).get("dataset_group_id", default_grp)
+                    if fb_records:
+                        _upsert_conversations_internal(conn, fb_records, fb_group, DEFAULT_CHECKLIST, {"provider": "builtin"})
+                except Exception as exc:
+                    print(f"[WARN] Could not seed {fb_path}: {exc}")
 
         conn.close()
 
@@ -742,8 +763,14 @@ class CQARequestHandler(BaseHTTPRequestHandler):
             ch = r["channel"]
             lang = r["language"]
 
-            if group_filter and grp.upper() != group_filter.upper():
-                continue
+            if group_filter:
+                gf_up = group_filter.upper()
+                grp_up = grp.upper()
+                if gf_up in ("PROD", "FBROKER"):
+                    if grp_up not in ("PROD", "FBROKER"):
+                        continue
+                elif grp_up != gf_up:
+                    continue
             if lang_filter and lang.upper() != lang_filter:
                 continue
             if channel_filter and ch.lower() != channel_filter:
@@ -833,6 +860,10 @@ class CQARequestHandler(BaseHTTPRequestHandler):
             cur = conn.cursor()
             if group_id.upper() in ("ALL", "*", ""):
                 cur.execute("SELECT * FROM conversations ORDER BY conversation_id ASC")
+            elif group_id.upper() in ("PROD", "FBROKER"):
+                cur.execute(
+                    "SELECT * FROM conversations WHERE UPPER(dataset_group_id) IN ('PROD', 'FBROKER') ORDER BY conversation_id ASC"
+                )
             else:
                 cur.execute(
                     "SELECT * FROM conversations WHERE UPPER(dataset_group_id) = UPPER(?) ORDER BY conversation_id ASC",
@@ -842,9 +873,13 @@ class CQARequestHandler(BaseHTTPRequestHandler):
             llm_cfg = get_llm_config(conn)
             conn.close()
 
-        provider = llm_cfg.get("provider", "builtin")
-        model_name = llm_cfg.get("model", "Freedom-CQA-Hybrid")
-        mode = "local" if provider == "ollama" else ("external_api" if provider in ("gemini", "openai") else "hybrid")
+        provider = llm_cfg.get("provider", "gemini")
+        model_name = llm_cfg.get("model", "gemini-flash-lite-latest")
+        if provider == "builtin" or not model_name or model_name == "Freedom-CQA-Hybrid":
+            mode = "external_api"
+            model_name = "gemini-flash-lite-latest"
+        else:
+            mode = "local" if provider == "ollama" else ("external_api" if provider in ("gemini", "openai") else "hybrid")
 
         target_criteria = [
             ("contact", ["01", "c01", "contact"], "boolean", False),
@@ -987,7 +1022,7 @@ class CQARequestHandler(BaseHTTPRequestHandler):
             "results": results
         }
 
-        sub_folder = "prod" if group_id.upper() == "PROD" else "dev"
+        sub_folder = "prod" if group_id.upper() in ("PROD", "FBROKER") else ("swap" if group_id.upper() == "SWAP" else "dev")
         repo_results_dir = os.path.join(BASE_DIR, "results", sub_folder)
         os.makedirs(repo_results_dir, exist_ok=True)
         results_file_path = os.path.join(repo_results_dir, "results.json")
@@ -1044,6 +1079,14 @@ class CQARequestHandler(BaseHTTPRequestHandler):
         group_id = (body.get("group_id") or "DEV").strip()
         custom_url = (body.get("api_url") or "").strip()
 
+        api_group_param = group_id
+        if group_id.upper() in ("PROD", "FBROKER"):
+            api_group_param = "FBroker"
+        elif group_id.upper() == "SWAP":
+            api_group_param = "Swap"
+        elif group_id.upper() == "DEV":
+            api_group_param = "DEV"
+
         records: List[Dict[str, Any]] = []
         source_note = ""
 
@@ -1052,7 +1095,7 @@ class CQARequestHandler(BaseHTTPRequestHandler):
             separator = "&" if "?" in ORGANIZER_API_URL else "?"
             target_url = (
                 f"{ORGANIZER_API_URL}{separator}"
-                f"group_id={urllib.parse.quote(group_id)}"
+                f"group_id={urllib.parse.quote(api_group_param)}"
             )
         try:
             if not target_url:
@@ -1073,6 +1116,18 @@ class CQARequestHandler(BaseHTTPRequestHandler):
                     payload = json.load(f)
                 records = payload.get("data", {}).get("records", [])
                 source_note = f"Загружено из локального кэша DEV (API недоступен: {error_type})"
+            elif group_id.upper() in ("PROD", "FBROKER") and os.path.exists(FBROKER_DATASET_FALLBACK):
+                with open(FBROKER_DATASET_FALLBACK, "r", encoding="utf-8") as f:
+                    payload = json.load(f)
+                records = payload.get("data", {}).get("records", [])
+                group_id = "FBroker"
+                source_note = f"Загружено из локального кэша FBroker (API недоступен: {error_type})"
+            elif group_id.upper() == "SWAP" and os.path.exists(SWAP_DATASET_FALLBACK):
+                with open(SWAP_DATASET_FALLBACK, "r", encoding="utf-8") as f:
+                    payload = json.load(f)
+                records = payload.get("data", {}).get("records", [])
+                group_id = "Swap"
+                source_note = f"Загружено из локального кэша Swap (API недоступен: {error_type})"
             else:
                 self._send_json({
                     "isSuccess": False,

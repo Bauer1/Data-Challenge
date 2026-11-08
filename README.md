@@ -2,7 +2,6 @@
 
 Команда: **bandwagon fallacy**  
 Хакатон: **Freedom Broker CQA Hackathon**  
-Онлайн демо (Live Demo): https://troops-engineering-iso-governmental.trycloudflare.com
 
 Сервис автоматизированной оценки качества диалогов службы поддержки Freedom Broker (текстовые чаты и аудиозвонки) на русском, казахском и английском языках (RU / KZ / EN). 
 

@@ -155,25 +155,42 @@ def evaluate_and_format(records: List[Dict[str, Any]], model_name: str = "gemini
 
         score_val = ev.get("final_score")
         if score_val is not None:
-            score_val = round(float(score_val), 1)
+            try:
+                score_val = round(float(score_val), 2)
+            except (ValueError, TypeError):
+                score_val = 0.0
+        else:
+            score_val = 0.0
+
+        crit_value = False
+        for ec in export_criteria:
+            if ec["criterion_id"] == "critical":
+                crit_value = bool(ec["value"])
+                break
 
         results.append({
             "conversation_id": cid,
             "status": "ok",
             "criteria": export_criteria,
-            "score": score_val
+            "score": {
+                "final_score": score_val,
+                "critical_flag": crit_value
+            }
         })
 
     return {
         "schema_version": "1.0",
         "team_name": "bandwagon fallacy",
-        "model": model_name,
+        "model": {
+            "mode": "external_api",
+            "name": model_name or "gemini-flash-lite-latest"
+        },
         "results": results
     }
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate CQA dataset and export hackathon results.json")
-    parser.add_argument("input", nargs="?", default="data/dev_dataset.json", help="Path to input JSON dataset")
+    parser.add_argument("input", nargs="?", default="fbroker_dataset.json", help="Path to input JSON dataset")
     parser.add_argument("output", nargs="?", default="results/prod/results.json", help="Path to output results.json")
     parser.add_argument("--model", default="gemini-flash-lite-latest", help="Model name in output json")
 
@@ -217,7 +234,11 @@ def main():
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(results_json, f, ensure_ascii=False, indent=2)
 
-    scores = [r["score"] for r in results_json["results"] if r.get("score") is not None]
+    scores = [
+        r["score"]["final_score"]
+        for r in results_json["results"]
+        if isinstance(r.get("score"), dict) and r["score"].get("final_score") is not None
+    ]
     avg_score = round(sum(scores) / len(scores), 2) if scores else 0.0
 
     print("Evaluation completed successfully.")
